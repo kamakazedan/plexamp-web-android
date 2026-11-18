@@ -1,0 +1,101 @@
+package io.github.kamakazedan.plexampweb
+
+import android.content.Context
+import androidx.core.content.edit
+import java.util.UUID
+
+/**
+ * What the app keeps for itself. The web app keeps its own (its sign-in among it)
+ * in the WebView, as in a browser: no Plex token is ever kept here.
+ */
+class Prefs(context: Context) {
+    private val prefs = context.getSharedPreferences("plexamp-web", Context.MODE_PRIVATE)
+
+    /** The player's address, ending in a slash: https://music.example.com/ */
+    var playerUrl: String?
+        get() = prefs.getString(PLAYER_URL, null)
+        set(value) = prefs.edit { if (value == null) remove(PLAYER_URL) else putString(PLAYER_URL, value) }
+
+    /**
+     * Whether the web app was signed in when last seen (by the page it was on):
+     * the player opens at start if so, the sign-in screen if not.
+     */
+    var signedIn: Boolean
+        get() = prefs.getBoolean(SIGNED_IN, false)
+        set(value) = prefs.edit { putBoolean(SIGNED_IN, value) }
+
+    /** This phone's id with Plex (X-Plex-Client-Identifier), shared with the web app. */
+    val clientId: String
+        get() = prefs.getString(CLIENT_ID, null)
+            ?: UUID.randomUUID().toString().also { id -> prefs.edit { putString(CLIENT_ID, id) } }
+
+    /** A sign-in waiting on plex.tv: its PIN's id (nothing secret on its own) and when it began. */
+    var pendingPin: PendingPin?
+        get() {
+            val id = prefs.getLong(PIN_ID, 0)
+            return if (id > 0) PendingPin(id, prefs.getLong(PIN_AT, 0)) else null
+        }
+        set(value) = prefs.edit {
+            if (value == null) {
+                remove(PIN_ID)
+                remove(PIN_AT)
+            } else {
+                putLong(PIN_ID, value.id)
+                putLong(PIN_AT, value.createdAt)
+            }
+        }
+
+    /** When the player was last checked for a new version, and what came of it. */
+    var lastCheckAt: Long
+        get() = prefs.getLong(LAST_CHECK_AT, 0)
+        set(value) = prefs.edit { putLong(LAST_CHECK_AT, value) }
+
+    /** "updated", "same" or "failed". */
+    var lastCheckOutcome: String?
+        get() = prefs.getString(LAST_CHECK_OUTCOME, null)
+        set(value) = prefs.edit { putString(LAST_CHECK_OUTCOME, value) }
+
+    /**
+     * Files the page asked for that the saved copy hadn't got: saved too, next time
+     * the player is.
+     */
+    var misses: Set<String>
+        get() = prefs.getStringSet(MISSES, null)?.toSet() ?: emptySet()
+        set(value) = prefs.edit { putStringSet(MISSES, value.take(MAX_MISSES).toSet()) }
+
+    /** The WebView's own cache (artwork from the last player, say) is cleared before it's next used. */
+    var clearWebCache: Boolean
+        get() = prefs.getBoolean(CLEAR_WEB_CACHE, false)
+        set(value) = prefs.edit { putBoolean(CLEAR_WEB_CACHE, value) }
+
+    fun addMiss(path: String) {
+        val now = misses
+        if (path !in now && now.size < MAX_MISSES) misses = now + path
+    }
+
+    /** Everything about the player (not this phone's id with Plex). */
+    fun forgetPlayer() = prefs.edit {
+        remove(PLAYER_URL)
+        remove(SIGNED_IN)
+        remove(PIN_ID)
+        remove(PIN_AT)
+        remove(LAST_CHECK_AT)
+        remove(LAST_CHECK_OUTCOME)
+        remove(MISSES)
+    }
+
+    data class PendingPin(val id: Long, val createdAt: Long)
+
+    private companion object {
+        const val PLAYER_URL = "playerUrl"
+        const val SIGNED_IN = "signedIn"
+        const val CLIENT_ID = "clientId"
+        const val PIN_ID = "pinId"
+        const val PIN_AT = "pinAt"
+        const val LAST_CHECK_AT = "lastCheckAt"
+        const val LAST_CHECK_OUTCOME = "lastCheckOutcome"
+        const val MISSES = "misses"
+        const val CLEAR_WEB_CACHE = "clearWebCache"
+        const val MAX_MISSES = 50
+    }
+}

@@ -1,0 +1,130 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+# Each job gets only what it needs. Actions are pinned to the commits of the
+# versions named beside them, and the runner to Ubuntu 24.04 (with Android's
+# SDK on it).
+permissions:
+  contents: read
+
+# One run at a time for each branch or tag; a pull request's older run is
+# cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The player the app saves, for the test that saves its files as the app does.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: kamakazedan/plexamp-web
+          path: plexamp-web
+          persist-credentials: false
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Check the Gradle wrapper is Gradle's own
+        run: echo "7d3a4ac4de1c32b59bc6a4eb8ecb8e612ccd0cf1ae1e99f66902da64df296172  gradle/wrapper/gradle-wrapper.jar" | sha256sum -c -
+
+      - name: Gradle's published checksum for its distribution
+        run: curl -fsSL https://services.gradle.org/distributions/gradle-8.14.3-bin.zip.sha256; echo
+
+      - name: Check the version matches the changelog
+        run: |
+          app="$(sed -n 's/^val appVersion = "\([0-9.]*\)"$/\1/p' app/build.gradle.kts)"
+          log="$(sed -n 's/^## \([0-9][0-9.]*\) .*/\1/p' CHANGELOG.md | head -n 1)"
+          echo "app $app, changelog $log"
+          [ -n "$app" ] && [ "$app" = "$log" ] || { echo "appVersion in app/build.gradle.kts must match the newest CHANGELOG.md entry"; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#v}" != "$app" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match version $app"
+            exit 1
+          fi
+          echo "VERSION=$app" >> "$GITHUB_ENV"
+
+      # The release key, where the repository has one (see README.md). Without it the
+      # APK is signed with a key made for this run, so it won't install over another's.
+      - name: Signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "::notice title=Signing::Signed with the repository's release key."
+          else
+            echo "::warning title=Signing::No release key: signed with a key made for this run, so this APK won't install over another build's."
+          fi
+
+      - name: Test and build
+        env:
+          PLEXAMP_WEB_DIR: ${{ github.workspace }}/plexamp-web/web
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
+
+      - name: Name the APK
+        run: |
+          rm -f "$RUNNER_TEMP/release.keystore"
+          apk="plexamp-web-android-$VERSION.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          {
+            echo "### $apk"
+            echo
+            echo "SHA-256: \`$(sha256sum "$apk" | cut -d' ' -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "APK=$apk" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plexamp-web-android-${{ env.VERSION }}
+          path: ${{ env.APK }}
+          if-no-files-found: error
+
+      - name: Keep the reports where a check failed
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reports
+          path: app/build/reports/
+          if-no-files-found: ignore
+
+  # A version tag (v0.1.0) publishes its APK as a release, with its changelog entry.
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "plexamp-web-android-$version" --dir dist
+          awk -v v="$version" 'index($0, "## " v " ") == 1 { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/*.apk --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file notes.md

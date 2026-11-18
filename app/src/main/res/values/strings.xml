@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">plexamp-web</string>
+    <string name="logo_description">plexamp-web</string>
+
+    <!-- Your player's address -->
+    <string name="address_title">Your player</string>
+    <string name="address_body">Enter the address you open plexamp-web at.</string>
+    <string name="address_hint">Player address</string>
+    <string name="address_helper">Like https://music.example.com or 192.168.1.50:8080</string>
+    <string name="address_continue">Continue</string>
+    <string name="address_checking">Checking…</string>
+    <string name="address_not_an_address">That isn\'t an address. Try one like https://music.example.com</string>
+    <string name="unencrypted_title">Not encrypted</string>
+    <string name="unencrypted_body">Your Plex sign-in would cross the internet unprotected. Use an https:// address if you can.</string>
+    <string name="unencrypted_continue">Use it anyway</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Why an address didn't work -->
+    <string name="problem_unreachable">Couldn\'t reach that address. Check it, and that this phone can reach it.</string>
+    <string name="problem_unknown_host">Couldn\'t find that address. Check it for typos.</string>
+    <string name="problem_timeout">That address didn\'t answer.</string>
+    <string name="problem_certificate">This phone doesn\'t trust that address\'s security certificate.</string>
+    <string name="problem_refused">That address said no (%1$d). A firewall rule may be blocking this phone.</string>
+    <string name="problem_password">That address asks for a password, which the app can\'t give.</string>
+    <string name="problem_not_found">Nothing was found at that address.</string>
+    <string name="problem_error">That address had a problem (%1$d).</string>
+    <string name="problem_not_player">That address isn\'t a plexamp-web player.</string>
+    <string name="problem_too_big">The player has more files than expected, so it wasn\'t saved.</string>
+
+    <!-- Sign in with Plex -->
+    <string name="signin_title">Sign in with Plex</string>
+    <string name="signin_body">You\'ll sign in on plex.tv, then come back here.</string>
+    <string name="signin_button">Sign in with Plex</string>
+    <string name="signin_opening">Opening plex.tv…</string>
+    <string name="signin_waiting">Sign in on plex.tv, then come back here.</string>
+    <string name="signin_finishing">Finishing sign-in…</string>
+    <string name="signin_not_finished">Sign-in wasn\'t finished on plex.tv. Try again.</string>
+    <string name="signin_unreachable">Couldn\'t reach plex.tv. Check the connection and try again.</string>
+    <string name="signin_other_ways">Other ways to sign in</string>
+    <string name="signin_other_player">Use another player</string>
+    <string name="signin_no_browser">No browser was found to open plex.tv.</string>
+    <string name="signed_in_name_fallback">Plex user</string>
+
+    <!-- Saving the player on the phone -->
+    <string name="prepare_title">Getting the player ready</string>
+    <string name="prepare_body">Saving it on this phone, so it opens without a connection.</string>
+    <plurals name="prepare_saved">
+        <item quantity="one">%d file saved</item>
+        <item quantity="other">%d files saved</item>
+    </plurals>
+    <string name="prepare_try_again">Try again</string>
+    <string name="prepare_offline">The player isn\'t saved on this phone yet, and it can\'t be reached now.</string>
+
+    <!-- The player -->
+    <string name="player_updated">The player has been updated.</string>
+    <string name="player_reload">Reload</string>
+    <string name="player_saved_file">Saved.</string>
+    <string name="player_save_failed">Couldn\'t save the file.</string>
+    <string name="player_no_app">No app was found to open that.</string>
+    <string name="player_restarting">The player stopped unexpectedly, so it was opened again.</string>
+
+    <!-- What's playing, in the notification -->
+    <string name="playback_channel">Playing</string>
+    <string name="playback_channel_description">What\'s playing, with its controls.</string>
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_next">Next</string>
+    <string name="action_previous">Previous</string>
+
+    <!-- Settings -->
+    <string name="shortcut_settings">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_player">Player</string>
+    <string name="settings_no_player">No player yet</string>
+    <string name="settings_other_player">Use another player</string>
+    <string name="settings_forget_title">Use another player?</string>
+    <string name="settings_forget_body">This signs you out here, and forgets this player and its saved copy.</string>
+    <string name="settings_forget_ok">Sign out</string>
+    <string name="settings_saved">Saved copy</string>
+    <string name="settings_saved_version">Version %1$s, saved %2$s</string>
+    <string name="settings_saved_when">Saved %1$s</string>
+    <string name="settings_saved_none">Not saved yet</string>
+    <string name="settings_last_check">Last checked %1$s: %2$s</string>
+    <string name="settings_never_checked">Not checked yet</string>
+    <string name="settings_check_now">Check for an update</string>
+    <string name="settings_checking">Checking…</string>
+    <string name="settings_check_note">It checks by itself on Wi-Fi.</string>
+    <string name="settings_app">This app</string>
+    <string name="settings_app_version">plexamp-web for Android %1$s</string>
+    <string name="outcome_updated">updated</string>
+    <string name="outcome_up_to_date">up to date</string>
+    <string name="outcome_failed">couldn\'t check</string>
+</resources>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- web/icons/icon.svg as it is, for the sign-in screens (as on the web app's own). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="88dp"
+    android:height="88dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path android:pathData="M112,0h288a112,112 0,0 1,112 112v288a112,112 0,0 1,-112 112h-288a112,112 0,0 1,-112 -112v-288a112,112 0,0 1,112 -112z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="153.6"
+                android:centerY="112.64"
+                android:gradientRadius="486.4"
+                android:type="radial">
+                <item android:color="#FF55648C" android:offset="0" />
+                <item android:color="#FF232B40" android:offset="0.55" />
+                <item android:color="#FF0E1118" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M256,108A148,148 0,1 1,256 404A148,148 0,1 1,256 108z"
+        android:strokeWidth="34"
+        android:strokeColor="#FFFFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M256,160A96,96 0,0 1,352 256"
+        android:strokeWidth="18"
+        android:strokeAlpha="0.55"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M256,212A44,44 0,1 1,256 300A44,44 0,1 1,256 212z" />
+</vector>

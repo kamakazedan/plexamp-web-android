@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The web app's own colours (web/css/app.css), so the two look as one. -->
+<resources>
+    <color name="bg">#FF0B0D12</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="on_white">#FF111111</color>
+    <color name="muted">#A3FFFFFF</color>
+    <color name="faint">#66FFFFFF</color>
+    <color name="line">#29FFFFFF</color>
+    <color name="surface">#FF34363A</color>
+    <color name="tint_hi">#FF7B8FC7</color>
+    <color name="danger">#FFFF8A80</color>
+    <color name="icon_bg">#FF232B40</color>
+</resources>

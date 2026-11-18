@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PlexampWeb" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/white</item>
+        <item name="colorOnPrimary">@color/on_white</item>
+        <item name="colorPrimaryContainer">@color/surface</item>
+        <item name="colorOnPrimaryContainer">@color/white</item>
+        <item name="colorSecondary">@color/tint_hi</item>
+        <item name="colorSurface">@color/bg</item>
+        <item name="colorOnSurface">@color/white</item>
+        <item name="colorOnSurfaceVariant">@color/muted</item>
+        <item name="colorOutline">@color/faint</item>
+        <item name="colorError">@color/danger</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:windowBackground">@color/bg</item>
+    </style>
+
+    <!-- The Settings shortcut's stepping stone: never shown. -->
+    <style name="Theme.PlexampWeb.Invisible" parent="@android:style/Theme.NoDisplay" />
+
+    <style name="TextAppearance.PlexampWeb.Title" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.PlexampWeb.Body" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">@color/muted</item>
+    </style>
+
+    <style name="TextAppearance.PlexampWeb.Section" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textColor">@color/muted</item>
+    </style>
+</resources>
