@@ -4,7 +4,7 @@ plugins {
 }
 
 // The app's version. CI checks it matches the newest entry in CHANGELOG.md.
-val appVersion = "0.1.0"
+val appVersion = "0.1.1"
 
 android {
     namespace = "io.github.kamakazedan.plexampweb"
