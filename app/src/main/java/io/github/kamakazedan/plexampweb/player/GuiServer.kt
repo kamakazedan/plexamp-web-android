@@ -3,6 +3,7 @@ package io.github.kamakazedan.plexampweb.player
 import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import io.github.kamakazedan.plexampweb.downloads.DownloadServer
 import io.github.kamakazedan.plexampweb.gui.GuiRefs
 import io.github.kamakazedan.plexampweb.gui.GuiSnapshot
 import io.github.kamakazedan.plexampweb.gui.GuiUpdates
@@ -14,13 +15,13 @@ import java.net.URI
 /**
  * Answers the WebView's requests for the player's own files (its page, scripts, styles
  * and icons) from the saved copy, at the player's own address, so it opens without a
- * connection and the web app can't tell. Everything else goes to the network as it
- * would in a browser: the player's service (api/), Plex (pms/ or the server itself),
- * artwork.
+ * connection and the web app can't tell; and for downloads (see DownloadServer).
+ * Everything else goes to the network as it would in a browser: the player's service
+ * (api/), Plex (pms/ or the server itself), artwork.
  *
  * Called on WebView's own threads.
  */
-class GuiServer(private val gui: GuiUpdates, base: String) {
+class GuiServer(private val gui: GuiUpdates, base: String, private val downloads: DownloadServer) {
     private val baseUri = URI(base)
 
     /** The copy the page on screen was opened from: its files come from it till it's reopened. */
@@ -38,6 +39,7 @@ class GuiServer(private val gui: GuiUpdates, base: String) {
         if (!request.method.equals("GET", ignoreCase = true)) return null
         val rel = pathOf(request.url) ?: return null
         if (rel == HANDOFF_PATH) return if (handoffPending) page(HANDOFF_PAGE) else notFound()
+        if (rel.startsWith(DOWNLOADS_PATH)) return downloads.respond(request, rel.removePrefix(DOWNLOADS_PATH))
         if (GuiRefs.isServicePath(rel)) return null
         val path = rel.ifEmpty { GuiRefs.INDEX }
         val snapshot = if (request.isForMainFrame && path == GuiRefs.INDEX) {
@@ -87,6 +89,9 @@ class GuiServer(private val gui: GuiUpdates, base: String) {
 
         /** Never asked of the player itself: answered here, only while a sign-in is being handed over. */
         const val HANDOFF_PATH = "__plexamp-web-android/handoff"
+
+        /** Never asked of the player itself either: downloads, answered here. */
+        const val DOWNLOADS_PATH = "__plexamp-web-android/downloads/"
 
         private const val HANDOFF_PAGE =
             "<!doctype html><meta charset=\"utf-8\"><meta name=\"color-scheme\" content=\"dark\">" +

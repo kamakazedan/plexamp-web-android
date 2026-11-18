@@ -6,7 +6,8 @@ import java.util.UUID
 
 /**
  * What the app keeps for itself. The web app keeps its own (its sign-in among it)
- * in the WebView, as in a browser: no Plex token is ever kept here.
+ * in the WebView, as in a browser: no Plex token is ever kept here. (Downloads keep the
+ * player's sign-in to your server, encrypted, while there are any: see TokenVault.)
  */
 class Prefs(context: Context) {
     private val prefs = context.getSharedPreferences("plexamp-web", Context.MODE_PRIVATE)
@@ -68,6 +69,34 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean(CLEAR_WEB_CACHE, false)
         set(value) = prefs.edit { putBoolean(CLEAR_WEB_CACHE, value) }
 
+    /** Downloads' settings, as chosen in the player (see DownloadSettings): null for as they are to begin with. */
+    var downloadQuality: String?
+        get() = prefs.getString(DOWNLOAD_QUALITY, null)
+        set(value) = prefs.edit { putString(DOWNLOAD_QUALITY, value) }
+
+    var downloadNetwork: String?
+        get() = prefs.getString(DOWNLOAD_NETWORK, null)
+        set(value) = prefs.edit { putString(DOWNLOAD_NETWORK, value) }
+
+    var downloadPrefer: String?
+        get() = prefs.getString(DOWNLOAD_PREFER, null)
+        set(value) = prefs.edit { putString(DOWNLOAD_PREFER, value) }
+
+    /** Whose downloads they are (a fingerprint: see DownloadAccount.ownerOf), while there are any. */
+    var downloadsOwner: String?
+        get() = prefs.getString(DOWNLOADS_OWNER, null)
+        set(value) = prefs.edit { if (value == null) remove(DOWNLOADS_OWNER) else putString(DOWNLOADS_OWNER, value) }
+
+    /** Why downloads couldn't be brought up to date last time: "signin", "unreachable", or null. */
+    var downloadsTrouble: String?
+        get() = prefs.getString(DOWNLOADS_TROUBLE, null)
+        set(value) = prefs.edit { if (value == null) remove(DOWNLOADS_TROUBLE) else putString(DOWNLOADS_TROUBLE, value) }
+
+    /** Whether the app has asked to show notifications (for downloads' progress): it asks once. */
+    var askedForNotifications: Boolean
+        get() = prefs.getBoolean(ASKED_NOTIFICATIONS, false)
+        set(value) = prefs.edit { putBoolean(ASKED_NOTIFICATIONS, value) }
+
     fun addMiss(path: String) {
         val now = misses
         if (path !in now && now.size < MAX_MISSES) misses = now + path
@@ -96,6 +125,12 @@ class Prefs(context: Context) {
         const val LAST_CHECK_OUTCOME = "lastCheckOutcome"
         const val MISSES = "misses"
         const val CLEAR_WEB_CACHE = "clearWebCache"
+        const val DOWNLOAD_QUALITY = "downloadQuality"
+        const val DOWNLOAD_NETWORK = "downloadNetwork"
+        const val DOWNLOAD_PREFER = "downloadPrefer"
+        const val DOWNLOADS_OWNER = "downloadsOwner"
+        const val DOWNLOADS_TROUBLE = "downloadsTrouble"
+        const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val MAX_MISSES = 50
     }
 }

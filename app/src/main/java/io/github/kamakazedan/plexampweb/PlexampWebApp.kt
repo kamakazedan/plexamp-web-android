@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import android.webkit.CookieManager
 import android.webkit.WebStorage
+import io.github.kamakazedan.plexampweb.downloads.DownloadWorker
+import io.github.kamakazedan.plexampweb.downloads.Downloads
 import io.github.kamakazedan.plexampweb.gui.GuiUpdateWorker
 import io.github.kamakazedan.plexampweb.gui.GuiUpdates
 import io.github.kamakazedan.plexampweb.media.MediaBridge
@@ -24,6 +26,8 @@ class PlexampWebApp : Application() {
         private set
     lateinit var media: MediaBridge
         private set
+    lateinit var downloads: Downloads
+        private set
 
     /** Work that outlives a screen (saving the player), on the main thread. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -38,19 +42,25 @@ class PlexampWebApp : Application() {
         prefs = Prefs(this)
         gui = GuiUpdates(this)
         media = MediaBridge(this)
+        downloads = Downloads(this, prefs)
         PlaybackService.createChannel(this)
-        Connectivity.watch(this) { scope.launch { gui.checkSoon() } }
+        DownloadWorker.createChannel(this)
+        Connectivity.watch(this) { online, unmetered ->
+            if (unmetered) scope.launch { gui.checkSoon() }
+            downloads.networkChanged(online, unmetered)
+        }
         if (prefs.playerUrl != null) GuiUpdateWorker.schedule(this)
     }
 
     /**
-     * Signs out here and forgets the player: its address, its saved copy, and everything
-     * the web app kept in the WebView (its sign-in, settings and queue). `notify`: tell
-     * the screens, so they start again.
+     * Signs out here and forgets the player: its address, its saved copy, downloads, and
+     * everything the web app kept in the WebView (its sign-in, settings and queue).
+     * `notify`: tell the screens, so they start again.
      */
     fun forgetPlayer(notify: Boolean = true) {
         media.reset()
         gui.forget()
+        scope.launch(Dispatchers.IO) { downloads.forgetNow() }
         prefs.forgetPlayer()
         prefs.clearWebCache = true
         GuiUpdateWorker.cancel(this)

@@ -3,6 +3,33 @@
 What changed in each version of plexamp-web for Android, newest first. The
 version you're running is in **Settings** (long-press the app's icon).
 
+## 0.2.0 - 2026-11-18
+
+### Added
+
+- **Downloads**: playlists kept on the phone, to play with no connection or
+  without using mobile data. **Download** on a playlist's page in the player
+  (it needs plexamp-web 0.40.0 or later), or **Settings › Downloads** there,
+  with:
+  - **Download quality**: Original (your files as they are, to begin with),
+    or High, Normal or Data saver (320, 192 or 128 kbps), converted by your
+    server.
+  - **Download on**: Wi-Fi only (to begin with), or mobile data too.
+  - **Play downloads**: Always (to begin with), On mobile data, or Only
+    offline. With your server out of reach they play whatever it says.
+  - The phone's free space, what downloads use, and each playlist's size. A
+    playlist that won't fit is refused, saying how much it needs.
+- **Kept up to date** with your server, on the network you allow, every few
+  hours and as the player opens, even with the app closed: tracks added to a
+  playlist are downloaded, those taken off removed, and a file changed on the
+  server downloaded again. A notification shows how it's getting on, and opens
+  Settings › Downloads. (The app asks once to show notifications, as the first
+  download starts.)
+- **Offline**, the player's Playlists show those on the phone, with their
+  covers, and play them.
+- **Signing out** in the player, switching user, or **Use another player**
+  removes downloads, and the sign-in the app kept them up to date with.
+
 ## 0.1.0 - 2026-11-18
 
 The first version.

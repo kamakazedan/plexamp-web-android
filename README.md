@@ -18,10 +18,11 @@ From then on:
 - **It opens from the phone**: with no connection, without using mobile data for the player, and when your player itself can't be reached (your Plex server still has to be, to play).
 - **New versions come on Wi-Fi**: it checks when it opens, when the phone joins Wi-Fi, and every few hours. A new version is used the next time the player opens, or straight away with **Reload**.
 - **It plays on** with the screen off or in another app, with the lock screen, the notification, headsets, watches and cars showing and controlling what's playing. Unplugging headphones (or a Bluetooth headset or car going) pauses it. (This needs the player's **Media keys and lock screen** setting, which is on to begin with.)
+- **Downloads**: playlists kept on the phone, to play with no connection or without using mobile data. **Download** on a playlist's page in the player, or **Settings › Downloads** there, which has the quality, Wi-Fi only or mobile data too, when to play them, and the space they take. They're kept up to date with your server on the network you allow, even with the app closed.
 - **Saving playlist files** and **sharing** work as in a browser.
 - **Signing out** in the player brings back the app's sign-in.
 
-**Settings**: long-press the app's icon, then **Settings**. It shows your player, the saved copy's version (with **Check for an update**), and **Use another player**, which signs you out and forgets everything.
+**Settings**: long-press the app's icon, then **Settings**. It shows your player, the saved copy's version (with **Check for an update**), and **Use another player**, which signs you out and forgets everything, downloads included.
 
 ## Install
 
@@ -42,9 +43,10 @@ The player runs in a WebView at its own address, so the web app works exactly as
 - **The player's own files** (its page, scripts, styles and icons) come from the copy saved on the phone. The app finds them as a browser does: from the page, each script's imports, the styles and the manifest, and paths the scripts load themselves.
 - **Everything else** goes to the network, as in a browser: the player's service (`api/`), Plex (through `pms/` or directly), and artwork.
 - **A new version** is saved alongside the old one, file by file (only what's changed is downloaded), and put in place in one step once every file it needs has come. The page on screen keeps the version it opened with.
-- **Signing in**: the app makes a Plex PIN, you claim it on plex.tv, and the token it gets is handed straight to the player's page, where the web app keeps it. The app itself never stores it.
+- **Signing in**: the app makes a Plex PIN, you claim it on plex.tv, and the token it gets is handed straight to the player's page, where the web app keeps it. The app itself doesn't store it (but see Downloads, below).
 - **What's playing**: the web app's Media Session (the same that gives browsers their media keys) is passed to Android's.
-- **What the app relies on in the web app** (where it keeps the sign-in, its pages, how it saves files) is listed in plexamp-web's [docs/android-app.md](https://github.com/kamakazedan/plexamp-web/blob/main/docs/android-app.md), and plexamp-web's CI fails where one changes.
+- **Downloads**: the player gives the app its server's addresses and its sign-in to the server each time it opens. While something's downloaded, the app keeps them, encrypted, and downloads in the background with Android's WorkManager: each playlist as the server has it now, each track as a file (or converted, at a lower quality), and its album's cover. The player plays them from the app, at the player's own address (`__plexamp-web-android/downloads/`), as Settings › Downloads says.
+- **What the app relies on in the web app** (where it keeps the sign-in, its pages, how it saves files, what it tells the app for downloads) is listed in plexamp-web's [docs/android-app.md](https://github.com/kamakazedan/plexamp-web/blob/main/docs/android-app.md), and plexamp-web's CI fails where one changes.
 
 ## Building
 
@@ -109,6 +111,9 @@ app/src/main/java/io/github/kamakazedan/plexampweb/
   player/                the WebView: its files from the saved copy (GuiServer), where it may go
                          (PlayerClient), handing the sign-in over (Handoff), and the bridge to the page
   media/                 what's playing, as Android's media session, and the playback service
+  downloads/             playlists kept on the phone: keeping them up to date (DownloadSync, DownloadWorker),
+                         what's kept (DownloadStore), the server (PlexClient), the page's questions
+                         (DownloadBridge) and their files (DownloadServer), and the sign-in, encrypted (TokenVault)
   ui/                    the screens: MainActivity (setting up, and the player) and Settings
   net/                   requests, and whether the phone's on Wi-Fi
 app/src/main/assets/page-bridge.js   the page's end of the bridge
