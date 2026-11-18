@@ -308,6 +308,8 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
 
     private suspend fun waitForPlex(plex: PlexSignIn, pending: Prefs.PendingPin) {
         signInBusy(R.string.signin_waiting)
+        // (Back without signing in: it can be started again.)
+        ui.primary.isEnabled = true
         while (System.currentTimeMillis() - pending.createdAt < PIN_TTL_MS) {
             val token = try {
                 plex.tokenFor(pending.id)

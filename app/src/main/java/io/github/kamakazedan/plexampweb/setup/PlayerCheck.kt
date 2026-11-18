@@ -21,7 +21,7 @@ object PlayerCheck {
         data class Found(val base: String) : Result
 
         /** Not one, or it couldn't be reached: `message` says why, with `code` where it has a %d. */
-        data class Problem(@StringRes val message: Int, val code: Int = 0) : Result
+        data class Problem(@param:StringRes val message: Int, val code: Int = 0) : Result
     }
 
     suspend fun check(address: String): Result = withContext(Dispatchers.IO) {

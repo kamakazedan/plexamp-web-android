@@ -44,9 +44,6 @@ jobs:
       - name: Check the Gradle wrapper is Gradle's own
         run: echo "7d3a4ac4de1c32b59bc6a4eb8ecb8e612ccd0cf1ae1e99f66902da64df296172  gradle/wrapper/gradle-wrapper.jar" | sha256sum -c -
 
-      - name: Gradle's published checksum for its distribution
-        run: curl -fsSL https://services.gradle.org/distributions/gradle-8.14.3-bin.zip.sha256; echo
-
       - name: Check the version matches the changelog
         run: |
           app="$(sed -n 's/^val appVersion = "\([0-9.]*\)"$/\1/p' app/build.gradle.kts)"
@@ -127,4 +124,6 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "plexamp-web-android-$version" --dir dist
           awk -v v="$version" 'index($0, "## " v " ") == 1 { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md
-          gh release create "$GITHUB_REF_NAME" dist/*.apk --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file notes.md
+          # (Versions before 1.0.0 are marked as pre-releases.)
+          case "$version" in 0.*) pre=--prerelease ;; *) pre= ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/*.apk --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file notes.md $pre

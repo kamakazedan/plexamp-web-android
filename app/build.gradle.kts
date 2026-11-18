@@ -56,12 +56,23 @@ android {
     lint {
         abortOnError = true
         checkReleaseBuilds = true
+        // (What it finds, in CI's log too.)
+        textReport = true
+        textOutput = file("stdout")
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+// Each test's result, in CI's log too.
+tasks.withType<Test>().configureEach {
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }
 

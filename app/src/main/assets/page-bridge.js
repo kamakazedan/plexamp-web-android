@@ -143,26 +143,35 @@
 
   // ---------- files the page saves ----------
 
+  // The page hands a file over as a blob: address it clicks. Its player's policy
+  // (connect-src) keeps fetch() from blob: addresses, so the file itself is kept
+  // as its address is made, and read from there.
+  const blobs = new Map();
+  const createObjectURL = URL.createObjectURL;
+  const revokeObjectURL = URL.revokeObjectURL;
+  URL.createObjectURL = function (object) {
+    const url = createObjectURL.call(URL, object);
+    if (object instanceof Blob) {
+      blobs.set(url, object);
+      setTimeout(() => blobs.delete(url), 60000);
+    }
+    return url;
+  };
+  URL.revokeObjectURL = function (url) {
+    blobs.delete(url);
+    return revokeObjectURL.call(URL, url);
+  };
+
   const click = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function () {
-    if (this.hasAttribute('download') && /^blob:/.test(this.href) && port()) {
-      const name = this.getAttribute('download') || 'plexamp-web';
-      fetch(this.href)
-        .then((res) => res.blob())
-        .then(
-          (blob) =>
-            new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve({ data: String(reader.result).split(',')[1] || '', mime: blob.type });
-              reader.onerror = () => reject(reader.error);
-              reader.readAsDataURL(blob);
-            }),
-        )
-        .then(({ data, mime }) => send({ type: 'download', name, mime: mime || 'application/octet-stream', data }))
-        .catch(() => {});
-      return undefined;
-    }
-    return click.call(this);
+    const blob = this.hasAttribute('download') && port() ? blobs.get(this.href) : undefined;
+    if (!blob) return click.call(this);
+    const name = this.getAttribute('download') || 'plexamp-web';
+    const reader = new FileReader();
+    reader.onload = () =>
+      send({ type: 'download', name, mime: blob.type || 'application/octet-stream', data: String(reader.result).split(',')[1] || '' });
+    reader.readAsDataURL(blob);
+    return undefined;
   };
 
   // ---------- sharing ----------

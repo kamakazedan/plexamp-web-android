@@ -29,7 +29,12 @@ import androidx.media.app.NotificationCompat as MediaNotificationCompat
 class PlaybackService : Service() {
     private val media get() = PlexampWebApp.from(this).media
     private val handler = Handler(Looper.getMainLooper())
-    private val stopNow = Runnable { stopSelf() }
+    // Paused a long while: the app stops keeping itself running, so the lock screen and
+    // headsets stop offering to play it too, until it's played from the app again.
+    private val stopNow = Runnable {
+        media.idle()
+        stopSelf()
+    }
     private val onChange: () -> Unit = { refresh() }
     private var foreground = false
 

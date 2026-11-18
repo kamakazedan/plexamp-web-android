@@ -151,6 +151,11 @@ class MediaBridge(private val app: PlexampWebApp) {
         }
     }
 
+    /** Paused a long while: no longer offered to the lock screen and headsets. */
+    fun idle() {
+        if (state != State.PLAYING) session.isActive = false
+    }
+
     /** Whether the page has a handler for a button ("nexttrack", say). */
     fun can(action: String) = action in actions
 

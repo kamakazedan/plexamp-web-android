@@ -17,7 +17,7 @@ From then on:
 
 - **It opens from the phone**: with no connection, without using mobile data for the player, and when your player itself can't be reached (your Plex server still has to be, to play).
 - **New versions come on Wi-Fi**: it checks when it opens, when the phone joins Wi-Fi, and every few hours. A new version is used the next time the player opens, or straight away with **Reload**.
-- **It plays on** with the screen off or in another app, with the lock screen, the notification, headsets, watches and cars showing and controlling what's playing. Unplugging headphones (or a Bluetooth headset or car going) pauses it.
+- **It plays on** with the screen off or in another app, with the lock screen, the notification, headsets, watches and cars showing and controlling what's playing. Unplugging headphones (or a Bluetooth headset or car going) pauses it. (This needs the player's **Media keys and lock screen** setting, which is on to begin with.)
 - **Saving playlist files** and **sharing** work as in a browser.
 - **Signing out** in the player brings back the app's sign-in.
 
