@@ -24,11 +24,12 @@ Use **Report a vulnerability** in the repository's **Security** tab if it's ther
 - **Plain `http://`** is allowed, as plexamp-web and Plex servers on your own network use it. An address that would send your sign-in over the internet unencrypted asks first. plex.tv is HTTPS only, and only certificates your phone trusts by itself are accepted (not ones added by apps or users).
 - **Signing out** in the player also clears the artwork the WebView kept: its addresses have your sign-in in them.
 - **Release builds** keep the page's messages out of the phone's log. The app logs no addresses.
+- **The release key signs releases, and nothing else.** Only CI's release job reads it, for a version's tag, and that job runs none of the build's code: Gradle and its plugins never see the key. Builds of branches and pull requests are signed with a key made for each run, so none can replace the app. Each release lists its APK's SHA-256 and its signing certificate's.
 - **No camera, microphone or location** for the page; no file access beyond the files you choose.
 
 ## Remaining risks
 
 - **On `http://`** (as on your own network), your player's traffic, sign-in included, isn't encrypted, as in a browser.
 - **The saved player is trusted as your player sent it.** Someone who could change your player's files, or its traffic over `http://`, could change the app's saved copy too, until the next update.
-- **The signing key** decides which updates install. Keep it safe (see [README.md](README.md#signing)): anyone with it could make an update that replaces the app and reads what it keeps.
+- **The signing key** decides which updates install. Keep it safe (see [README.md](README.md#signing)): anyone with it could make an update that replaces the app and reads what it keeps. Anyone who can push a version tag to the repository can have CI sign a release with it.
 - **A phone that's rooted, or has a malicious accessibility app**, can read what any app keeps.

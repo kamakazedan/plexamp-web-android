@@ -8,17 +8,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.SocketTimeoutException
-import java.net.URI
 import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 
-/** Whether an address is a plexamp-web player, following it where it's moved (to https://, say). */
+/**
+ * Whether an address is a plexamp-web player, following it where it's moved (to https://,
+ * say), but never from https:// to plain http://, nor to anything but an http:// or
+ * https:// address.
+ */
 object PlayerCheck {
     private const val MAX_REDIRECTS = 5
 
     sealed interface Result {
         /** A player, at `base` (where it ended up). */
         data class Found(val base: String) : Result
+
+        /** It moves from https:// to `to`, a plain http:// address, which isn't followed. */
+        data class Unencrypted(val to: String) : Result
 
         /** Not one, or it couldn't be reached: `message` says why, with `code` where it has a %d. */
         data class Problem(@param:StringRes val message: Int, val code: Int = 0) : Result
@@ -34,10 +40,10 @@ object PlayerCheck {
             }
             if (res.status in 300..399) {
                 val location = res.header("location") ?: return@withContext Result.Problem(R.string.problem_error, res.status)
-                url = try {
-                    URI(url).resolve(location.trim()).toString()
-                } catch (e: Exception) {
-                    return@withContext Result.Problem(R.string.problem_error, res.status)
+                url = when (val next = PlayerAddress.redirect(url, location)) {
+                    is PlayerAddress.Redirect.To -> next.url
+                    is PlayerAddress.Redirect.Unencrypted -> return@withContext Result.Unencrypted(next.url)
+                    PlayerAddress.Redirect.Nowhere -> return@withContext Result.Problem(R.string.problem_error, res.status)
                 }
                 continue
             }

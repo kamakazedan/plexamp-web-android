@@ -12,6 +12,10 @@ import java.util.Locale
  * Required files are ones the app can't start without; a saved copy is only kept with
  * all of them. Others (icons, paths only mentioned in a script) are saved where the
  * player has them.
+ *
+ * What this relies on in the web app (its page's scripts, APP_INFO, the paths its
+ * container answers) is listed in plexamp-web's docs/android-app.md, and its CI fails
+ * where one changes.
  */
 object GuiRefs {
     data class Ref(val path: String, val required: Boolean)

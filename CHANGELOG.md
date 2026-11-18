@@ -10,8 +10,9 @@ The first version.
 ### Added
 
 - **Setting up**: the app asks for your player's address, and checks it's a
-  plexamp-web player (following it to https:// where it's moved). An address
-  that would send your sign-in over the internet unencrypted asks first.
+  plexamp-web player (following it where it's moved, to https:// say, but never
+  from https:// to http://). Where it ends up on another server, or where it
+  would send your sign-in over the internet unencrypted, it asks first.
 - **Sign in with Plex** on plex.tv, in your phone's browser, so signing in with
   Google, Apple or a password manager works. The sign-in is handed to the
   player, which then asks for your server and library, as it does in a browser.
@@ -23,7 +24,9 @@ The first version.
 - **New versions on Wi-Fi**: the app checks when it opens, when the phone joins
   Wi-Fi, and every few hours in the background. Only what's changed is
   downloaded, a new version is put in place whole or not at all, and it's used
-  the next time the player opens (or straight away, with **Reload**).
+  the next time the player opens (or straight away, with **Reload**). A file
+  the player can do without (hls.js, an icon) that doesn't come because the
+  connection dropped is kept as it was.
 - **Playing on** with the screen off or in another app, with what's playing on
   the lock screen and in a notification, and controls for headsets, watches and
   cars. Music pauses when headphones are unplugged or a Bluetooth headset or car

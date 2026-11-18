@@ -153,6 +153,80 @@ class GuiUpdaterTest {
         assertEquals(first.snapshot, store.current())
     }
 
+    /** The player, with `path` not coming this time: no answer at all, or `status`. */
+    private fun withBlip(player: Player, path: String, status: Int? = null) = GuiFetcher { url, etag, lastModified ->
+        if (url != base + path) return@GuiFetcher player.get(url, etag, lastModified)
+        if (status == null) throw java.io.IOException("connection reset")
+        Fetched(status, "text/plain", null, null, emptyMap(), null)
+    }
+
+    @Test
+    fun anOptionalFileThatDoesntComeThisTimeIsKeptAsItWas() {
+        for (status in listOf(null, 500, 502, 503, 429, 403)) {
+            val store = GuiStore(temp.newFolder())
+            val player = Player(base, app())
+            val first = update(store, player) as GuiUpdater.Outcome.Saved
+            val hls = first.snapshot.files.getValue("vendor/hls.min.js")
+            val blip = withBlip(player, "vendor/hls.min.js", status)
+            val second = runBlocking { GuiUpdater(store, blip).update(base, store.current()) } as GuiUpdater.Outcome.Saved
+            // The same version: nothing to reload, and nothing gone from it.
+            assertFalse("$status", second.changed)
+            assertEquals("$status", first.snapshot.id, second.snapshot.id)
+            assertEquals("$status", hls, second.snapshot.files["vendor/hls.min.js"])
+            store.clean(setOf(second.snapshot.id))
+            assertTrue("$status", store.hasBlob(hls.blob))
+        }
+    }
+
+    @Test
+    fun anOptionalFileKeptThroughABlipStillComesWithANewVersion() {
+        val store = GuiStore(temp.newFolder())
+        val files = app()
+        val player = Player(base, files)
+        val first = update(store, player) as GuiUpdater.Outcome.Saved
+        files["js/a.js"] = js("export const a = 2;")
+        val second = runBlocking { GuiUpdater(store, withBlip(player, "vendor/hls.min.js")).update(base, store.current()) } as GuiUpdater.Outcome.Saved
+        assertTrue(second.changed)
+        assertEquals(first.snapshot.files.getValue("vendor/hls.min.js"), second.snapshot.files["vendor/hls.min.js"])
+        store.clean(setOf(second.snapshot.id))
+        assertTrue(second.snapshot.files.values.all { store.hasBlob(it.blob) })
+    }
+
+    @Test
+    fun anOptionalFileThePlayerNoLongerHasIsLeftOut() {
+        for (status in listOf(404, 410)) {
+            val store = GuiStore(temp.newFolder())
+            val player = Player(base, app())
+            update(store, player)
+            val second = runBlocking {
+                GuiUpdater(store, withBlip(player, "vendor/hls.min.js", status)).update(base, store.current())
+            } as GuiUpdater.Outcome.Saved
+            assertTrue("$status", second.changed)
+            assertFalse("$status", "vendor/hls.min.js" in second.snapshot.files)
+        }
+        // ...as where it's answered with the player's page (try_files … /index.html).
+        val store = GuiStore(temp.newFolder())
+        val files = app()
+        val player = Player(base, files)
+        update(store, player)
+        files.remove("vendor/hls.min.js")
+        val second = update(store, player) as GuiUpdater.Outcome.Saved
+        assertTrue(second.changed)
+        assertFalse("vendor/hls.min.js" in second.snapshot.files)
+    }
+
+    @Test
+    fun aFileTheAppNeedsThatDoesntComeKeepsTheCopyThereWas() {
+        for (status in listOf(null, 503)) {
+            val store = GuiStore(temp.newFolder())
+            val player = Player(base, app())
+            val first = update(store, player) as GuiUpdater.Outcome.Saved
+            val failed = runBlocking { GuiUpdater(store, withBlip(player, "js/a.js", status)).update(base, store.current()) }
+            assertTrue("$status", failed is GuiUpdater.Outcome.Failed)
+            assertEquals("$status", first.snapshot, store.current())
+        }
+    }
+
     @Test
     fun filesThePageAskedForAreSavedNextTime() {
         val store = GuiStore(temp.newFolder())

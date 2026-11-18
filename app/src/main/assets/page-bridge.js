@@ -13,6 +13,8 @@
 //   share sheet.
 //
 // Nothing else goes to the app, and the app sends nothing but those buttons.
+// How the web app saves and shares (a Blob's link, clicked; text, not files) is
+// listed in plexamp-web's docs/android-app.md, and its CI fails where it changes.
 (() => {
   'use strict';
   if (window.top !== window || window.__plexampAndroid) return;

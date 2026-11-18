@@ -6,10 +6,6 @@ plugins {
 // The app's version. CI checks it matches the newest entry in CHANGELOG.md.
 val appVersion = "0.1.0"
 
-// The release key, from CI's secrets (see .github/workflows/build.yml). Without
-// one, release builds are signed with the debug key instead.
-val releaseKeystore: String? = System.getenv("ANDROID_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
-
 android {
     namespace = "io.github.kamakazedan.plexampweb"
     compileSdk = 36
@@ -23,23 +19,15 @@ android {
         versionCode = appVersion.split('.').fold(0) { code, part -> code * 100 + part.toInt() }
     }
 
-    signingConfigs {
-        if (releaseKeystore != null) {
-            create("release") {
-                storeFile = file(releaseKeystore)
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-            }
-        }
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // Signed with the debug key, for testing. A release is signed with the release
+            // key by CI's release job, which runs none of this, so the key never meets
+            // Gradle or its plugins (see .github/workflows/build.yml).
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
