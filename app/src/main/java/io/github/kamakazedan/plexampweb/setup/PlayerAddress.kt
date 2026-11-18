@@ -76,6 +76,36 @@ object PlayerAddress {
         return uri.scheme == "http" && !isLocal(uri.host ?: return false)
     }
 
+    /** Where a redirect goes, and whether it's followed there. */
+    sealed interface Redirect {
+        /** On to `url`. */
+        data class To(val url: String) : Redirect
+
+        /** From https:// to plain http:// (`url`): never followed, as it would drop the encryption. */
+        data class Unencrypted(val url: String) : Redirect
+
+        /** Somewhere that isn't an http:// or https:// address (file:, say), or with a password in it: never followed. */
+        data object Nowhere : Redirect
+    }
+
+    /** Where a redirect from `from`, with `location` (its Location header), goes. */
+    fun redirect(from: String, location: String): Redirect {
+        val target = try {
+            URI(from).resolve(location.trim())
+        } catch (e: Exception) {
+            return Redirect.Nowhere
+        }
+        val scheme = target.scheme?.lowercase(Locale.ROOT)
+        if (scheme != "http" && scheme != "https") return Redirect.Nowhere
+        if (target.rawUserInfo != null || target.host.isNullOrEmpty()) return Redirect.Nowhere
+        val url = target.toString()
+        return if (scheme == "http" && URI(from).scheme.equals("https", ignoreCase = true)) Redirect.Unencrypted(url) else Redirect.To(url)
+    }
+
+    /** Whether `found`, where checking `typed` ended up, is on another server (another host) than `typed`. */
+    fun otherServer(typed: String, found: String): Boolean =
+        !URI(typed).host.equals(URI(found).host, ignoreCase = true)
+
     /** scheme://host[:port], as WebView's rules for which pages may use the app's bridge take it. */
     fun origin(base: String): String {
         val uri = URI(base)

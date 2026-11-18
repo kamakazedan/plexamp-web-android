@@ -12,8 +12,10 @@
     <string name="address_checking">Checking…</string>
     <string name="address_not_an_address">That isn\'t an address. Try one like https://music.example.com</string>
     <string name="unencrypted_title">Not encrypted</string>
-    <string name="unencrypted_body">Your Plex sign-in would cross the internet unprotected. Use an https:// address if you can.</string>
+    <string name="unencrypted_body">Signing in at %1$s would send your Plex sign-in across the internet unprotected. Use an https:// address if you can.</string>
     <string name="unencrypted_continue">Use it anyway</string>
+    <string name="moved_title">On another server</string>
+    <string name="moved_body">That address sends you on to %1$s. Sign in there?</string>
     <string name="cancel">Cancel</string>
 
     <!-- Why an address didn't work -->
@@ -26,6 +28,7 @@
     <string name="problem_not_found">Nothing was found at that address.</string>
     <string name="problem_error">That address had a problem (%1$d).</string>
     <string name="problem_not_player">That address isn\'t a plexamp-web player.</string>
+    <string name="problem_downgrade">That address sends you on to %1$s, which isn\'t encrypted. Enter that address if you mean to use it.</string>
     <string name="problem_too_big">The player has more files than expected, so it wasn\'t saved.</string>
 
     <!-- Sign in with Plex -->

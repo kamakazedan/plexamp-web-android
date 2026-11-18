@@ -10,8 +10,9 @@ The first version.
 ### Added
 
 - **Setting up**: the app asks for your player's address, and checks it's a
-  plexamp-web player (following it to https:// where it's moved). An address
-  that would send your sign-in over the internet unencrypted asks first.
+  plexamp-web player (following it where it's moved, to https:// say, but never
+  from https:// to http://). Where it ends up on another server, or where it
+  would send your sign-in over the internet unencrypted, it asks first.
 - **Sign in with Plex** on plex.tv, in your phone's browser, so signing in with
   Google, Apple or a password manager works. The sign-in is handed to the
   player, which then asks for your server and library, as it does in a browser.

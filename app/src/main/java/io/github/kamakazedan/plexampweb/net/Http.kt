@@ -34,7 +34,8 @@ object Http {
         connectTimeoutMs: Int = 15_000,
         readTimeoutMs: Int = 30_000,
     ): Response {
-        val conn = URL(url).openConnection() as HttpURLConnection
+        // (Only http:// and https://: a redirect could name file: or jar:, which aren't.)
+        val conn = URL(url).openConnection() as? HttpURLConnection ?: throw IOException("Not an http:// or https:// address.")
         try {
             conn.requestMethod = method
             conn.instanceFollowRedirects = false

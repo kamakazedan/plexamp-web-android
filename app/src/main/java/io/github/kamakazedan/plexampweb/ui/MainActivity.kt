@@ -222,16 +222,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         }
         ui.addressLayout.error = null
         WindowCompat.getInsetsController(window, ui.address).hide(WindowInsetsCompat.Type.ime())
-        if (PlayerAddress.isUnencryptedPublic(base)) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.unencrypted_title)
-                .setMessage(R.string.unencrypted_body)
-                .setPositiveButton(R.string.unencrypted_continue) { _, _ -> checkAddress(base) }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-        } else {
-            checkAddress(base)
-        }
+        checkAddress(base)
     }
 
     private fun checkAddress(address: String) {
@@ -245,10 +236,28 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
             ui.progress.isVisible = false
             setStatus(null)
             when (result) {
-                is PlayerCheck.Result.Found -> onPlayerFound(result.base)
+                is PlayerCheck.Result.Found -> confirmPlayer(address, result.base)
+                is PlayerCheck.Result.Unencrypted -> ui.addressLayout.error = getString(R.string.problem_downgrade, result.to)
                 is PlayerCheck.Result.Problem -> ui.addressLayout.error = getString(result.message, result.code)
             }
         }
+    }
+
+    /**
+     * The player where it was found, once you've said so where that needs a word: where
+     * signing in through it would cross the internet unencrypted, or where the address
+     * you typed sent the app on to another server. (Asked of where it ended up, not of
+     * what you typed: an http:// address that moves to https:// is fine.)
+     */
+    private fun confirmPlayer(typed: String, found: String) {
+        val unencrypted = PlayerAddress.isUnencryptedPublic(found)
+        if (!unencrypted && !PlayerAddress.otherServer(typed, found)) return onPlayerFound(found)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(if (unencrypted) R.string.unencrypted_title else R.string.moved_title)
+            .setMessage(getString(if (unencrypted) R.string.unencrypted_body else R.string.moved_body, found))
+            .setPositiveButton(if (unencrypted) R.string.unencrypted_continue else R.string.address_continue) { _, _ -> onPlayerFound(found) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun onPlayerFound(base: String) {

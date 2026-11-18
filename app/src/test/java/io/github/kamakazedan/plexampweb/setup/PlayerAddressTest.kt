@@ -56,6 +56,50 @@ class PlayerAddressTest {
     }
 
     @Test
+    fun redirectsAreFollowedOnlyToHttpAndHttps() {
+        assertEquals(
+            PlayerAddress.Redirect.To("https://music.example.com/"),
+            PlayerAddress.redirect("http://music.example.com/", "https://music.example.com/"),
+        )
+        assertEquals(
+            PlayerAddress.Redirect.To("https://music.example.com/plexamp/"),
+            PlayerAddress.redirect("https://music.example.com/", " /plexamp/ "),
+        )
+        assertEquals(
+            PlayerAddress.Redirect.To("https://elsewhere.example.net/"),
+            PlayerAddress.redirect("https://music.example.com/", "//elsewhere.example.net/"),
+        )
+        for (location in listOf("file:///data/data/x", "jar:file:/x.jar!/y", "ftp://music.example.com/", "content://x/y", "mailto:me@example.com", "https://me:secret@music.example.com/", "http:///nohost", "not an address")) {
+            assertEquals(location, PlayerAddress.Redirect.Nowhere, PlayerAddress.redirect("https://music.example.com/", location))
+        }
+    }
+
+    @Test
+    fun aRedirectFromHttpsToHttpIsNeverFollowed() {
+        assertEquals(
+            PlayerAddress.Redirect.Unencrypted("http://music.example.com/"),
+            PlayerAddress.redirect("https://music.example.com/", "http://music.example.com/"),
+        )
+        // ...even on your own network.
+        assertEquals(
+            PlayerAddress.Redirect.Unencrypted("http://nas.local:8080/"),
+            PlayerAddress.redirect("https://nas.local/", "http://nas.local:8080/"),
+        )
+        assertEquals(
+            PlayerAddress.Redirect.To("http://192.168.1.5:8080/x/"),
+            PlayerAddress.redirect("http://192.168.1.5:8080/", "x/"),
+        )
+    }
+
+    @Test
+    fun anotherServerIsAnotherHost() {
+        assertFalse(PlayerAddress.otherServer("http://music.example.com/", "https://Music.Example.com/plexamp/"))
+        assertFalse(PlayerAddress.otherServer("http://nas:8080/", "https://nas:8443/"))
+        assertTrue(PlayerAddress.otherServer("https://music.example.com/", "https://www.example.com/"))
+        assertTrue(PlayerAddress.otherServer("http://192.168.1.5:8080/", "http://music.example.com/"))
+    }
+
+    @Test
     fun originsAreSchemeHostAndPort() {
         assertEquals("https://music.example.com", PlayerAddress.origin("https://music.example.com/sub/"))
         assertEquals("http://192.168.1.5:8080", PlayerAddress.origin("http://192.168.1.5:8080/"))
