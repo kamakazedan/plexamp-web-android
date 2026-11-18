@@ -1,7 +1,5 @@
 package io.github.kamakazedan.plexampweb.downloads
 
-import com.sun.net.httpserver.HttpExchange
-import com.sun.net.httpserver.HttpServer
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
@@ -16,9 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.IOException
-import java.net.InetSocketAddress
 import java.net.ServerSocket
-import java.net.URLDecoder
 import java.util.Collections
 import java.util.Random
 
@@ -37,51 +33,37 @@ class PlexClientTest {
     /** The first download of the file stops there, as a connection that drops. */
     private var cutAt = -1
 
-    private lateinit var plex: HttpServer
-    private lateinit var other: HttpServer
+    private lateinit var plex: StandInServer
+    private lateinit var other: StandInServer
 
     @Before
     fun start() {
         plex = server("abc", ::answer)
-        other = server("someone-else") { send(it, 404, "text/plain", ByteArray(0)) }
+        other = server("someone-else") { it.send(404, "text/plain", ByteArray(0)) }
     }
 
     @After
     fun stop() {
-        plex.stop(0)
-        other.stop(0)
+        plex.close()
+        other.close()
     }
 
-    private fun uri(server: HttpServer) = "http://127.0.0.1:${server.address.port}"
+    private fun uri(server: StandInServer) = server.uri
 
     private fun client(vararg uris: String, sign: String = token) =
         PlexClient(DownloadAccount("abc", sign, "owner", uris.toList(), "Kitchen"), clientId, "1.0")
 
-    private fun server(id: String, handle: (HttpExchange) -> Unit): HttpServer {
-        val s = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        s.createContext("/") { ex ->
-            try {
-                asked += ex.requestURI.rawPath + "?" + (ex.requestURI.rawQuery ?: "")
-                if (ex.requestURI.path == "/identity") json(ex, JSONObject().put("MediaContainer", JSONObject().put("machineIdentifier", id)))
-                else handle(ex)
-            } catch (e: IOException) {
-                // (A download cut short on purpose.)
-            } finally {
-                runCatching { ex.close() }
-            }
-        }
-        s.start()
-        return s
+    private fun server(id: String, handle: (StandInServer.Exchange) -> Unit) = StandInServer { ex ->
+        asked += ex.rawPath + "?" + (ex.rawQuery ?: "")
+        if (ex.path == "/identity") json(ex, JSONObject().put("MediaContainer", JSONObject().put("machineIdentifier", id)))
+        else handle(ex)
     }
 
-    private fun query(ex: HttpExchange): Map<String, String> = (ex.requestURI.rawQuery ?: "").split('&').filter { it.contains('=') }
-        .associate { URLDecoder.decode(it.substringBefore('='), "UTF-8") to URLDecoder.decode(it.substringAfter('='), "UTF-8") }
-
-    private fun answer(ex: HttpExchange) {
-        val path = ex.requestURI.path
-        val q = query(ex)
+    private fun answer(ex: StandInServer.Exchange) {
+        val path = ex.path
+        val q = ex.query
         // (A conversion's files go by its session alone, as Plex's do.)
-        if (!path.contains("/session/") && q["X-Plex-Token"] != token) return send(ex, 401, "text/plain", ByteArray(0))
+        if (!path.contains("/session/") && q["X-Plex-Token"] != token) return ex.send(401, "text/plain", ByteArray(0))
         when {
             path == "/playlists/5" -> json(ex, JSONObject().put("MediaContainer", JSONObject().put("Metadata", JSONArray().put(PlexSamples.playlistInfo("5", "Road trip")))))
             path == "/playlists/5/items" -> {
@@ -90,7 +72,7 @@ class PlexClientTest {
                 val page = if (start == 0) all.take(2) else all.drop(start)
                 json(ex, JSONObject().put("MediaContainer", JSONObject().put("totalSize", all.size).put("Metadata", JSONArray(page))))
             }
-            path.startsWith("/playlists/") -> send(ex, 404, "text/plain", ByteArray(0))
+            path.startsWith("/playlists/") -> ex.send(404, "text/plain", ByteArray(0))
             path == "/library/parts/1/1700000000/file.flac" -> part(ex)
             path == "/audio/:/transcode/universal/start.m3u8" -> {
                 assertEquals("/library/metadata/1", q["path"])
@@ -99,44 +81,33 @@ class PlexClientTest {
             }
             path.endsWith("/base/index.m3u8") ->
                 m3u8(ex, "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10,\n00000.ts\n#EXTINF:10,\n00001.ts\n#EXT-X-ENDLIST\n")
-            path.endsWith("/base/00000.ts") -> send(ex, 200, "video/mp2t", TsSamples.segment(frames.take(25)))
-            path.endsWith("/base/00001.ts") -> send(ex, 200, "video/mp2t", TsSamples.segment(frames.drop(25)))
+            path.endsWith("/base/00000.ts") -> ex.send(200, "video/mp2t", TsSamples.segment(frames.take(25)))
+            path.endsWith("/base/00001.ts") -> ex.send(200, "video/mp2t", TsSamples.segment(frames.drop(25)))
             path == "/audio/:/transcode/universal/stop" -> {
                 stops += q["session"]!!
-                send(ex, 200, "text/plain", ByteArray(0))
+                ex.send(200, "text/plain", ByteArray(0))
             }
-            path == "/photo/:/transcode" -> send(ex, 200, "image/jpeg", "jpeg of ${q["url"]}".toByteArray())
-            else -> send(ex, 404, "text/plain", ByteArray(0))
+            path == "/photo/:/transcode" -> ex.send(200, "image/jpeg", "jpeg of ${q["url"]}".toByteArray())
+            else -> ex.send(404, "text/plain", ByteArray(0))
         }
     }
 
     // The track's file, a part of it where that's asked for.
-    private fun part(ex: HttpExchange) {
-        val range = ex.requestHeaders.getFirst("Range")?.let { ByteRange.of(it, file.size.toLong()) }
+    private fun part(ex: StandInServer.Exchange) {
+        val range = ex.header("Range")?.let { ByteRange.of(it, file.size.toLong()) }
         if (range == null) {
-            ex.responseHeaders.add("Content-Type", "audio/flac")
-            ex.sendResponseHeaders(200, file.size.toLong())
             val upTo = if (cutAt >= 0) cutAt.also { cutAt = -1 } else file.size
-            ex.responseBody.write(file, 0, upTo)
-            return
+            return ex.send(200, "audio/flac", file, upTo = upTo)
         }
         if (range == ByteRange.UNSATISFIABLE) {
-            ex.responseHeaders.add("Content-Range", "bytes */${file.size}")
-            return send(ex, 416, "text/plain", ByteArray(0))
+            return ex.send(416, "text/plain", ByteArray(0), mapOf("Content-Range" to "bytes */${file.size}"))
         }
-        ex.responseHeaders.add("Content-Range", range.contentRange(file.size.toLong()))
-        send(ex, 206, "audio/flac", file.copyOfRange(range.start.toInt(), range.end.toInt() + 1))
+        ex.send(206, "audio/flac", file.copyOfRange(range.start.toInt(), range.end.toInt() + 1), mapOf("Content-Range" to range.contentRange(file.size.toLong())))
     }
 
-    private fun json(ex: HttpExchange, body: JSONObject) = send(ex, 200, "application/json", body.toString().toByteArray())
+    private fun json(ex: StandInServer.Exchange, body: JSONObject) = ex.send(200, "application/json", body.toString().toByteArray())
 
-    private fun m3u8(ex: HttpExchange, text: String) = send(ex, 200, "application/vnd.apple.mpegurl", text.toByteArray())
-
-    private fun send(ex: HttpExchange, status: Int, type: String, body: ByteArray) {
-        ex.responseHeaders.add("Content-Type", type)
-        ex.sendResponseHeaders(status, if (body.isEmpty()) -1 else body.size.toLong())
-        if (body.isNotEmpty()) ex.responseBody.write(body)
-    }
+    private fun m3u8(ex: StandInServer.Exchange, text: String) = ex.send(200, "application/vnd.apple.mpegurl", text.toByteArray())
 
     private fun closedAddress(): String = ServerSocket(0).use { "http://127.0.0.1:${it.localPort}" }
 
