@@ -58,7 +58,7 @@ android {
         checkReleaseBuilds = true
         // (What it finds, in CI's log too.)
         textReport = true
-        textOutput = file("stdout")
+        textOutput = File("stdout")
     }
 
     packaging {
