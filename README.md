@@ -25,9 +25,9 @@ From then on:
 
 ## Install
 
-Download the APK from the newest run of the [Build workflow](../../actions/workflows/build.yml) (its **Artifacts**), or from [Releases](../../releases). Open it on your phone, and allow your browser or files app to install apps when asked.
+Download the APK from the newest of the [Releases](../../releases) (under **Assets**) on your phone, and open it. Allow your browser or files app to install apps when asked. Each release lists the APK's SHA-256, and its signing certificate's, to check it by.
 
-An APK installs over an earlier one only if both were signed with the same key: see [Signing](#signing).
+An APK installs over an earlier one only if both were signed with the same key: see [Signing](#signing). The APKs each run of the [Build workflow](../../actions/workflows/build.yml) keeps (its **Artifacts**) are for testing: each is signed with a key made for that run, so it installs only where the app isn't installed already.
 
 | | |
 | --- | --- |
@@ -54,7 +54,7 @@ Android Studio (open the folder), or:
 ./gradlew testDebugUnitTest   # the tests
 ```
 
-It needs JDK 17 or later and the Android SDK (platform 36). CI builds every push, runs the tests and lint, and keeps the APK as an artifact. A tag like `v0.1.0` publishes it as a release, with its changelog entry; the tag has to match the version in `app/build.gradle.kts`, which has to match the newest entry in [CHANGELOG.md](CHANGELOG.md).
+It needs JDK 17 or later and the Android SDK (platform 36). CI builds every push and pull request, runs the tests and lint, and keeps the APK as an artifact, for testing. A tag like `v0.1.0` publishes a release: the APK, signed with the release key, with its SHA-256 and its changelog entry. The tag has to match the version in `app/build.gradle.kts`, which has to match the newest entry in [CHANGELOG.md](CHANGELOG.md). Push the tag (`git tag v0.1.0` then `git push origin v0.1.0`), or make the release on the [Releases](../../releases) page (**Draft a new release**, a new tag like `v0.1.0`, **Publish release**): CI adds the APK to it a few minutes later.
 
 One test saves the real plexamp-web's files as the app does, from a checkout of it: CI sets `PLEXAMP_WEB_DIR` to its `web/` folder. Locally:
 
@@ -64,7 +64,7 @@ PLEXAMP_WEB_DIR=../plexamp-web/web ./gradlew testDebugUnitTest
 
 ### Signing
 
-Android only installs an update signed with the same key as the app already installed. CI signs with the repository's release key, from these secrets (**Settings › Secrets and variables › Actions**):
+Android only installs an update signed with the same key as the app already installed. CI signs releases with the release key, and nothing else: only its release job reads the key, for a version's tag, and that job runs none of the build's code. Keep its secrets in an environment named `release` (**Settings › Environments**) that only tags like `v*` may use (its **Deployment branches and tags**), so nothing else can read them. The repository's own secrets (**Settings › Secrets and variables › Actions**) work too. It reads these:
 
 | Secret | What it is |
 | --- | --- |
@@ -80,7 +80,7 @@ keytool -genkeypair -keystore release.p12 -storetype PKCS12 -alias plexamp-web-a
   -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=plexamp-web-android"
 ```
 
-Keep a copy somewhere safe, such as a password manager: an app signed with another key can only be installed after uninstalling this one, which signs you out. Without the secrets, CI signs with a key made for that run instead (and says so).
+Keep a copy somewhere safe, such as a password manager: an app signed with another key can only be installed after uninstalling this one, which signs you out. Without the secrets, a tag's release stops before publishing anything. (`ANDROID_KEY_ALIAS` can be a variable rather than a secret, so its words aren't hidden in the logs, or left out where the keystore has one key. `ANDROID_KEY_PASSWORD` can be left out where it's the keystore's password.)
 
 ## The code
 
