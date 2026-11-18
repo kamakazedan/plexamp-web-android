@@ -68,7 +68,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             .setContentTitle(context.getString(R.string.downloads_notification_title))
             .setContentText(
                 if (counted != null) {
-                    context.getString(R.string.downloads_notification_progress, counted.done, counted.total)
+                    context.resources.getQuantityString(R.plurals.downloads_notification_progress, counted.total, counted.done, counted.total)
                 } else {
                     context.getString(R.string.downloads_notification_checking)
                 },

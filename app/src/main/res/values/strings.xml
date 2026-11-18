@@ -75,7 +75,10 @@
     <string name="downloads_channel">Downloads</string>
     <string name="downloads_channel_description">Playlists downloading to this phone.</string>
     <string name="downloads_notification_title">Downloading playlists</string>
-    <string name="downloads_notification_progress">%1$d of %2$d tracks</string>
+    <plurals name="downloads_notification_progress">
+        <item quantity="one">%1$d of %2$d track</item>
+        <item quantity="other">%1$d of %2$d tracks</item>
+    </plurals>
     <string name="downloads_notification_checking">Checking for changes</string>
 
     <!-- Settings -->

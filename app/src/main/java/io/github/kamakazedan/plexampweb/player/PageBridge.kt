@@ -96,8 +96,11 @@ class PageBridge(
                 val text = msg.optString("text").takeIf { it.isNotBlank() } ?: return
                 host.share(msg.optString("title").takeIf { it.isNotBlank() && !msg.isNull("title") }, text)
             }
-            // (Answered to the page that asked, if it's still the one there.)
-            "downloads" -> downloadBridge?.onMessage(msg) { json -> if (reply === proxy) proxy.postMessage(json) }
+            // (Answered to the page that asked, if it's still the one there. WebView can answer
+            // wherever the page could write: asked all the same, as postMessage wants.)
+            "downloads" -> downloadBridge?.onMessage(msg) { json ->
+                if (reply === proxy && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) proxy.postMessage(json)
+            }
             else -> media.onPageMessage(msg)
         }
     }
