@@ -68,17 +68,30 @@ Android only installs an update signed with the same key as the app already inst
 
 | Secret | What it is |
 | --- | --- |
-| `ANDROID_KEYSTORE_BASE64` | The keystore, base64-encoded (`base64 -w0 release.p12`) |
+| `ANDROID_KEYSTORE_BASE64` | The keystore, base64-encoded on one line (below) |
 | `ANDROID_KEYSTORE_PASSWORD` | Its password |
-| `ANDROID_KEY_ALIAS` | The key's alias |
-| `ANDROID_KEY_PASSWORD` | The key's password |
+| `ANDROID_KEY_ALIAS` | The key's alias: `plexamp-web`, made as below |
+| `ANDROID_KEY_PASSWORD` | The same password: keytool gives the key the keystore's |
 
-To make one:
+To make one, outside the repository's folder, with the `keytool` from JDK 17 or later:
 
 ```sh
-keytool -genkeypair -keystore release.p12 -storetype PKCS12 -alias plexamp-web-android \
+cd ~
+keytool -genkeypair -keystore plexamp-web-release.jks -storetype PKCS12 -alias plexamp-web \
   -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=plexamp-web-android"
+base64 -w0 plexamp-web-release.jks          # Linux: prints the line for ANDROID_KEYSTORE_BASE64
+base64 -i plexamp-web-release.jks | pbcopy   # macOS: copies it instead
 ```
+
+On Windows, `keytool` usually isn't on the PATH, so use Android Studio's own (this is where Android Studio installs by default). In PowerShell:
+
+```powershell
+cd $HOME
+& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -genkeypair -keystore plexamp-web-release.jks -storetype PKCS12 -alias plexamp-web -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=plexamp-web-android"
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\plexamp-web-release.jks")) | Set-Clipboard
+```
+
+`keytool` asks for one password, twice: it's both the keystore's and the key's, so it goes in both password secrets. The `pbcopy` and `Set-Clipboard` lines copy the base64 straight to the clipboard, so no copy of it is left in a file. (`.gitignore` keeps keystores and `.b64` files out of the repository, but it's safest to keep them out of its folder too.)
 
 Keep a copy somewhere safe, such as a password manager: an app signed with another key can only be installed after uninstalling this one, which signs you out. Without the secrets, CI signs with a key made for that run instead (and says so).
 
