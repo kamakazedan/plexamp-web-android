@@ -8,6 +8,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.net.toUri
 
 /**
  * The player's WebView: its own files come from the saved copy (GuiServer), it stays
@@ -55,7 +56,7 @@ class PlayerClient(private val host: Host, private val server: GuiServer) : WebV
     }
 
     override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-        val path = server.pathOf(Uri.parse(url)) ?: return
+        val path = server.pathOf(url.toUri()) ?: return
         if (path != GuiServer.HANDOFF_PATH) host.onPlayerPageStarted()
     }
 
@@ -64,7 +65,7 @@ class PlayerClient(private val host: Host, private val server: GuiServer) : WebV
     }
 
     override fun onPageFinished(view: WebView, url: String) {
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         if (server.pathOf(uri) == GuiServer.HANDOFF_PATH) host.onHandoffLoaded(view) else routeOf(url)?.let(host::onRoute)
     }
 
@@ -78,7 +79,7 @@ class PlayerClient(private val host: Host, private val server: GuiServer) : WebV
     }
 
     private fun routeOf(url: String): String? {
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         val path = server.pathOf(uri) ?: return null
         if (path == GuiServer.HANDOFF_PATH) return null
         return uri.fragment?.takeIf { it.startsWith("/") }

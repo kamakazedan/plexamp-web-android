@@ -2,6 +2,7 @@ package io.github.kamakazedan.plexampweb.auth
 
 import android.net.Uri
 import android.os.Build
+import androidx.core.net.toUri
 import io.github.kamakazedan.plexampweb.BuildConfig
 import io.github.kamakazedan.plexampweb.net.Http
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +60,7 @@ class PlexSignIn(private val clientId: String) {
             "context[device][platform]" to "Android",
             "context[device][device]" to "Android",
         ).joinToString("&") { (name, value) -> "${encode(name)}=${encode(value)}" }
-        return Uri.parse("https://app.plex.tv/auth/#!?$params")
+        return "https://app.plex.tv/auth/#!?$params".toUri()
     }
 
     /** The token, once the PIN's been claimed on plex.tv; null till then. */

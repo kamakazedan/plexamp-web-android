@@ -22,6 +22,7 @@ import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -449,7 +450,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         view.webChromeClient = PlayerChrome(this)
         view.setDownloadListener { url, _, _, _, _ ->
             // (A file the page makes itself, a playlist say, comes through the bridge instead.)
-            if (!url.startsWith("blob:")) openOutside(Uri.parse(url), userAsked = true)
+            if (!url.startsWith("blob:")) openOutside(url.toUri(), userAsked = true)
         }
         val pageBridge = PageBridge(this, app.media)
         pageBridge.attach(this, view, base)

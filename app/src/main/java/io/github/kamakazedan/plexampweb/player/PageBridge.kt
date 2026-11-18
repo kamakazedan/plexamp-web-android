@@ -31,20 +31,20 @@ class PageBridge(private val host: Host, private val media: MediaBridge) {
     private var script: ScriptHandler? = null
 
     fun attach(context: Context, webView: WebView, base: String): Boolean {
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) ||
-            !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) &&
+            WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
         ) {
-            return false
+            val origins = setOf(PlayerAddress.origin(base))
+            WebViewCompat.addWebMessageListener(webView, OBJECT_NAME, origins) { _, message, _, isMainFrame, replyProxy ->
+                val data = message.data
+                if (isMainFrame && data != null) onMessage(data, replyProxy)
+            }
+            val code = context.assets.open(SCRIPT_ASSET).bufferedReader().use { it.readText() }
+            script = WebViewCompat.addDocumentStartJavaScript(webView, code, origins)
+            media.connect { json -> reply?.postMessage(json) }
+            return true
         }
-        val origins = setOf(PlayerAddress.origin(base))
-        WebViewCompat.addWebMessageListener(webView, OBJECT_NAME, origins) { _, message, _, isMainFrame, replyProxy ->
-            val data = message.data
-            if (isMainFrame && data != null) onMessage(data, replyProxy)
-        }
-        val code = context.assets.open(SCRIPT_ASSET).bufferedReader().use { it.readText() }
-        script = WebViewCompat.addDocumentStartJavaScript(webView, code, origins)
-        media.connect { json -> reply?.postMessage(json) }
-        return true
+        return false
     }
 
     /** A new page: what the last one said no longer stands. */
@@ -54,7 +54,7 @@ class PageBridge(private val host: Host, private val media: MediaBridge) {
     }
 
     fun detach() {
-        script?.remove()
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) script?.remove()
         script = null
         reply = null
         media.disconnect()

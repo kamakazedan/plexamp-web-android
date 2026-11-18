@@ -56,6 +56,7 @@ class PlaybackService : Service() {
         return START_NOT_STICKY
     }
 
+    @SuppressLint("InlinedApi") // (ServiceCompat passes the service's type on Android 10 and later only.)
     private fun goForeground() {
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
