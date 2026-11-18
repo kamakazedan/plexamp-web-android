@@ -29,7 +29,10 @@ class Fetched(
 /**
  * Saves the player's web app: every file it's made of (see GuiRefs), fetched from the
  * player, then put in place in one step, and only once every file it needs has come.
- * Files saved before are asked for only if they've changed since.
+ * Files saved before are asked for only if they've changed since. One it can do
+ * without (an icon, hls.js) that doesn't come this time, for a reason that may pass
+ * (no answer, a server error), is kept as it was saved before: only a player that says
+ * it hasn't got it (404 or 410) leaves it out.
  */
 class GuiUpdater(
     private val store: GuiStore,
@@ -104,7 +107,7 @@ class GuiUpdater(
             }
             if (seen.size > MAX_FILES) return@coroutineScope Outcome.Failed(Reason.TOO_BIG)
             val results = todo.map { ref ->
-                async(Dispatchers.IO) { parallel.withPermit { ref to fetchOne(baseUri, ref.path, before) } }
+                async(Dispatchers.IO) { parallel.withPermit { ref to fetchOne(baseUri, ref, before) } }
             }.awaitAll()
             val next = ArrayList<GuiRefs.Ref>()
             for ((ref, result) in results) {
@@ -142,13 +145,14 @@ class GuiUpdater(
         }
     }
 
-    private fun fetchOne(base: URI, path: String, before: GuiSnapshot?): One {
+    private fun fetchOne(base: URI, ref: GuiRefs.Ref, before: GuiSnapshot?): One {
+        val path = ref.path
         val old = before?.files?.get(path)?.takeIf { store.hasBlob(it.blob) }
         val url = if (path == GuiRefs.INDEX) base.toString() else base.resolve(URI(null, null, path, null)).toString()
         val res = try {
             fetcher.get(url, old?.etag, old?.lastModified)
         } catch (e: IOException) {
-            return One.Unreachable
+            return keptOr(ref, old, One.Unreachable)
         }
         return when (res.status) {
             304 -> {
@@ -161,14 +165,33 @@ class GuiUpdater(
                 One.Got(old.copy(etag = res.etag ?: old.etag, lastModified = res.lastModified ?: old.lastModified), kept)
             }
             200 -> {
-                val body = res.body ?: return One.Unreachable
+                val body = res.body ?: return keptOr(ref, old, One.Unreachable)
+                // (A player answers with its page where it hasn't the file: not there.)
                 if (!GuiRefs.typeMatches(path, res.contentType)) return One.Missing(415)
                 val sha = store.putBlob(body)
                 One.Got(GuiFile(sha, res.contentType ?: GuiRefs.guessType(path), res.etag, res.lastModified, res.headers), body)
             }
-            401, 403, 407 -> One.Refused(res.status)
-            else -> One.Missing(res.status)
+            404, 410 -> One.Missing(res.status)
+            401, 403, 407 -> keptOr(ref, old, One.Refused(res.status))
+            else -> keptOr(ref, old, One.Missing(res.status))
         }
+    }
+
+    /**
+     * A file the app can do without that didn't come, for a reason that may pass: kept as
+     * it was saved before, where it was, so a dropped connection or a busy server never
+     * takes it out of the saved copy (nor counts as a new version). Without one saved
+     * before, or for a file the app needs (an update without it fails, and the copy
+     * there was stays as it was), `failed`.
+     */
+    private fun keptOr(ref: GuiRefs.Ref, old: GuiFile?, failed: One): One {
+        if (ref.required || old == null) return failed
+        val kept = try {
+            store.readBlob(old.blob)
+        } catch (e: IOException) {
+            return failed
+        }
+        return One.Got(old, kept)
     }
 
     private fun newId() = "%x-%04x".format(clock(), Random.nextInt(0x10000))
