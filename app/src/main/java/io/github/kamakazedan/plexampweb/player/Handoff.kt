@@ -14,6 +14,9 @@ class Handoff(private val token: String, private val name: String, private val t
      * this phone's id with Plex as "pw.clientId"), then the web app opens, to choose a
      * server, as after signing in there. Where someone's signed in there already, theirs
      * is left as it is. Gives "ok" once done.
+     *
+     * Those keys, that shape and those pages are the web app's own: plexamp-web's
+     * docs/android-app.md lists them, and its CI fails where one changes.
      */
     fun script(base: String, clientId: String): String {
         val auth = JSONObject()

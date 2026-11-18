@@ -485,6 +485,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         app.gui.inUse = null
     }
 
+    // (The web app's pages: listed in plexamp-web's docs/android-app.md, whose CI fails where they change.)
     override fun onRoute(route: String) {
         val signInPage = route == "/login" || route.startsWith("/login?")
         if (!signInPage) {

@@ -44,6 +44,7 @@ The player runs in a WebView at its own address, so the web app works exactly as
 - **A new version** is saved alongside the old one, file by file (only what's changed is downloaded), and put in place in one step once every file it needs has come. The page on screen keeps the version it opened with.
 - **Signing in**: the app makes a Plex PIN, you claim it on plex.tv, and the token it gets is handed straight to the player's page, where the web app keeps it. The app itself never stores it.
 - **What's playing**: the web app's Media Session (the same that gives browsers their media keys) is passed to Android's.
+- **What the app relies on in the web app** (where it keeps the sign-in, its pages, how it saves files) is listed in plexamp-web's [docs/android-app.md](https://github.com/kamakazedan/plexamp-web/blob/main/docs/android-app.md), and plexamp-web's CI fails where one changes.
 
 ## Building
 
