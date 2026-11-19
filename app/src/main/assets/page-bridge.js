@@ -261,6 +261,7 @@
         device: text(a.device),
       }),
     forget: () => ask('forget'),
+    check: () => ask('check'),
     bad: (track) => ask('bad', { track: String(track) }),
     // `fn(state)` each time downloads change: returns what stops it.
     watch: (fn) => {

@@ -22,6 +22,7 @@ import org.json.JSONObject
  *     set { quality, network, prefer }
  *     account { serverId, token, user, uris, device }   the player's sign-in to its server, each time it opens
  *     forget                             signed out
+ *     check                              brought up to date now ("Up to date", tapped)
  *     bad { track }                      a downloaded track that wouldn't play
  *
  * and is answered { type: "downloads", id, ok, state } or { …, ok: false, error: { code } }, the code
@@ -56,6 +57,7 @@ class DownloadBridge(
                     "set" -> downloads.set(msg.stringOrNull("quality"), msg.stringOrNull("network"), msg.stringOrNull("prefer"))
                     "account" -> downloads.account(accountOf(msg) ?: throw Downloads.Refused("account"))
                     "forget" -> downloads.forget()
+                    "check" -> downloads.check()
                     "bad" -> downloads.dropTrack(msg.getString("track"))
                     else -> throw Downloads.Refused("unknown")
                 }

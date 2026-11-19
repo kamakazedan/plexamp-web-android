@@ -22,7 +22,11 @@ class DownloadSync(
     private val stopped: () -> Boolean = { false },
     private val onProgress: (Progress) -> Unit = {},
 ) {
-    /** `done` of `total` tracks to download, and the playlist the one coming is in. */
+    /**
+     * Of every track the playlists have (each once), `done` of `total` on the phone as they
+     * should be, counted as Settings › Downloads counts each playlist's; and the playlist the
+     * one coming is in. 0 of 0 while there's nothing to download.
+     */
     data class Progress(val done: Int, val total: Int, val playlist: String?)
 
     enum class Outcome {
@@ -64,19 +68,21 @@ class DownloadSync(
         store.removeUnwanted()
         store.flush()
         val queue = toDownload()
+        val before = if (queue.isEmpty()) 0 else (store.index().wanted().size - queue.size).coerceAtLeast(0)
+        val total = if (queue.isEmpty()) 0 else before + queue.size
         val problems = HashMap<String, String?>()
         store.index().playlists.forEach { problems[it.id] = null }
         var done = 0
         var troubleInARow = 0
         var lastFlush = clock()
-        onProgress(Progress(0, queue.size, queue.firstOrNull()?.playlists?.first()))
+        onProgress(Progress(before, total, queue.firstOrNull()?.playlists?.first()))
         for (item in queue) {
             if (stopped()) throw PlexSource.Stopped()
             val kbps = DownloadRules.kbpsFor(item.spec, settings.quality, playable)
             if (DownloadRules.estimate(item.spec, kbps) > room()) {
                 item.playlists.forEach { problems[it] = SavedPlaylist.SPACE }
             } else {
-                onProgress(Progress(done, queue.size, item.playlists.first()))
+                onProgress(Progress(before + done, total, item.playlists.first()))
                 try {
                     fetch(item.spec, kbps)
                     troubleInARow = 0
@@ -96,7 +102,7 @@ class DownloadSync(
         }
         store.setProblems(problems)
         store.update { it.copy(syncedAt = clock()) }
-        onProgress(Progress(queue.size, queue.size, null))
+        onProgress(Progress(total, total, null))
         return Outcome.DONE
     }
 

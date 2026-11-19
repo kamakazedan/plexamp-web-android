@@ -119,6 +119,41 @@ class DownloadSyncTest {
     }
 
     @Test
+    fun progressCountsWhatsOnThePhoneAlready() {
+        add("10")
+        sync()
+        // Put in on the server: 2 of its 3 tracks on the phone already, the third to come.
+        plex.playlists["10"] = PlexSamples.fetched("10", "Road trip", listOf(PlexSamples.track("1", thumb = ALBUM), PlexSamples.track("2", thumb = ALBUM), PlexSamples.track("5")))
+        later()
+        val progress = ArrayList<DownloadSync.Progress>()
+        val counting = { DownloadSync(store, plex, DownloadSettings(), { Long.MAX_VALUE }, clock = { now }, onProgress = { progress += it }).run() }
+        counting()
+        assertEquals(DownloadSync.Progress(2, 3, "10"), progress.first())
+        assertEquals(DownloadSync.Progress(3, 3, null), progress.last())
+        // Nothing to download: nothing counted.
+        progress.clear()
+        later()
+        counting()
+        assertEquals(listOf(DownloadSync.Progress(0, 0, null)), progress.distinct())
+    }
+
+    @Test
+    fun askedToCheckRightAfterTheLastTime() {
+        add("10")
+        sync()
+        // Changed on the server a minute after: not asked about again so soon...
+        plex.playlists["10"] = PlexSamples.fetched("10", "Road trip", listOf(PlexSamples.track("5")))
+        now += 60_000L
+        sync()
+        assertEquals(listOf("1", "2"), store.index().playlist("10")!!.tracks)
+        // ...unless asked to check.
+        store.askAgain()
+        assertEquals(DownloadSync.Outcome.DONE, sync())
+        assertEquals(listOf("5"), store.index().playlist("10")!!.tracks)
+        assertEquals(setOf("5"), store.index().tracks.keys)
+    }
+
+    @Test
     fun keptUpToDateWithTheServer() {
         add("10")
         add("11")

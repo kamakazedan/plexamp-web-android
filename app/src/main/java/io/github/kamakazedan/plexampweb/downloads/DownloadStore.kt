@@ -26,7 +26,7 @@ class DownloadStore(private val root: File, private val clock: () -> Long = Syst
     private var index = read()
     private var dirty = false
 
-    /** Goes up with each playlist added or removed: a sync under way then goes round again. */
+    /** Goes up with each playlist added or removed (or asked about again): a sync under way then goes round again. */
     @Volatile
     var generation = 0L
         private set
@@ -63,6 +63,13 @@ class DownloadStore(private val root: File, private val clock: () -> Long = Syst
         if (index.playlist(id) == null) return@synchronized // removed meanwhile
         savePlaylistJson(id, json)
         update { idx -> idx.copy(playlists = idx.playlists.map { if (it.id == id) it.copy(title = title, tracks = tracks, checkedAt = clock()) else it }) }
+    }
+
+    /** Each playlist asked about again at the next sync, however lately it was: a sync under way goes round again. */
+    fun askAgain() = synchronized(lock) {
+        update { idx -> idx.copy(playlists = idx.playlists.map { it.copy(checkedAt = 0) }) }
+        flush()
+        generation++
     }
 
     /** Why some of each playlist's tracks aren't on the phone (null for none of them). */
@@ -166,6 +173,12 @@ class DownloadStore(private val root: File, private val clock: () -> Long = Syst
     /** The bytes downloads take: tracks and covers. */
     fun bytesUsed(): Long = synchronized(lock) {
         index.tracks.values.sumOf { it.bytes } + index.covers.values.sumOf { coverFile(it).length() }
+    }
+
+    /** The bytes a playlist takes, counted as bytesUsed counts them: its tracks and their covers, each once. */
+    fun bytesOf(playlist: SavedPlaylist): Long = synchronized(lock) {
+        val covers = playlist.tracks.mapNotNullTo(HashSet()) { id -> index.tracks[id]?.cover?.let { index.covers[it] } }
+        index.bytesOf(playlist) + covers.sumOf { coverFile(it).length() }
     }
 
     /**
