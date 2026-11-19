@@ -11,6 +11,7 @@ import io.github.kamakazedan.plexampweb.downloads.DownloadBridge
 import io.github.kamakazedan.plexampweb.downloads.Downloads
 import io.github.kamakazedan.plexampweb.media.MediaBridge
 import io.github.kamakazedan.plexampweb.setup.PlayerAddress
+import io.github.kamakazedan.plexampweb.update.AppUpdates
 import kotlinx.coroutines.CoroutineScope
 import org.json.JSONException
 import org.json.JSONObject
@@ -18,9 +19,9 @@ import org.json.JSONObject
 /**
  * What the player's page and the app say to each other (see assets/page-bridge.js):
  * what's playing, for the lock screen, the notification, headsets and cars, with their
- * buttons sent back; files the page saves; things it shares; and downloads (see
- * DownloadBridge). Only the player's own page can use it: WebView gives it to pages at
- * the player's origin alone.
+ * buttons sent back; files the page saves; things it shares; downloads (see
+ * DownloadBridge); and the app's version, and checking for updates (see AppBridge). Only
+ * the player's own page can use it: WebView gives it to pages at the player's origin alone.
  *
  * Without the WebView features it needs (an old, never-updated WebView), the player
  * still works, without those.
@@ -29,6 +30,7 @@ class PageBridge(
     private val host: Host,
     private val media: MediaBridge,
     private val downloads: Downloads,
+    private val updates: AppUpdates,
     private val scope: CoroutineScope,
 ) {
     interface Host {
@@ -37,11 +39,15 @@ class PageBridge(
 
         /** A playlist was added to downloads. */
         fun onDownloadsStarted()
+
+        /** The player's checked for a new version now, as asked, and opened in it: see AppBridge. */
+        suspend fun checkPlayer(): String
     }
 
     private var reply: JavaScriptReplyProxy? = null
     private var script: ScriptHandler? = null
     private var downloadBridge: DownloadBridge? = null
+    private var appBridge: AppBridge? = null
 
     fun attach(context: Context, webView: WebView, base: String): Boolean {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return false
@@ -55,6 +61,7 @@ class PageBridge(
         script = WebViewCompat.addDocumentStartJavaScript(webView, code, origins)
         media.connect { json -> reply?.postMessage(json) }
         downloadBridge = DownloadBridge(downloads, scope, PlayerAddress.origin(base), host::onDownloadsStarted)
+        appBridge = AppBridge(updates, scope, host::checkPlayer)
         return true
     }
 
@@ -72,6 +79,7 @@ class PageBridge(
         media.disconnect()
         downloadBridge?.stop()
         downloadBridge = null
+        appBridge = null
     }
 
     private fun onMessage(data: String, proxy: JavaScriptReplyProxy) {
@@ -98,11 +106,14 @@ class PageBridge(
             }
             // (Answered to the page that asked, if it's still the one there. WebView can answer
             // wherever the page could write: asked all the same, as postMessage wants.)
-            "downloads" -> downloadBridge?.onMessage(msg) { json ->
-                if (reply === proxy && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) proxy.postMessage(json)
-            }
+            "downloads" -> downloadBridge?.onMessage(msg) { json -> answer(proxy, json) }
+            "app" -> appBridge?.onMessage(msg) { json -> answer(proxy, json) }
             else -> media.onPageMessage(msg)
         }
+    }
+
+    private fun answer(proxy: JavaScriptReplyProxy, json: String) {
+        if (reply === proxy && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) proxy.postMessage(json)
     }
 
     private fun safeName(name: String): String =

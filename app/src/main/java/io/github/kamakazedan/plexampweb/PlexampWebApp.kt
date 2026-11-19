@@ -11,6 +11,7 @@ import io.github.kamakazedan.plexampweb.gui.GuiUpdates
 import io.github.kamakazedan.plexampweb.media.MediaBridge
 import io.github.kamakazedan.plexampweb.media.PlaybackService
 import io.github.kamakazedan.plexampweb.net.Connectivity
+import io.github.kamakazedan.plexampweb.update.AppUpdates
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +29,8 @@ class PlexampWebApp : Application() {
         private set
     lateinit var downloads: Downloads
         private set
+    lateinit var updates: AppUpdates
+        private set
 
     /** Work that outlives a screen (saving the player), on the main thread. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -43,6 +46,7 @@ class PlexampWebApp : Application() {
         gui = GuiUpdates(this)
         media = MediaBridge(this)
         downloads = Downloads(this, prefs)
+        updates = AppUpdates(prefs)
         PlaybackService.createChannel(this)
         DownloadWorker.createChannel(this)
         Connectivity.watch(this) { online, unmetered ->

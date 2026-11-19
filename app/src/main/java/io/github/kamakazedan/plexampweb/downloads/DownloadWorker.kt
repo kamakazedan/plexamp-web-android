@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
-import android.os.SystemClock
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -24,6 +23,11 @@ import io.github.kamakazedan.plexampweb.PlexampWebApp
 import io.github.kamakazedan.plexampweb.R
 import io.github.kamakazedan.plexampweb.ui.MainActivity
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 /**
@@ -44,12 +48,23 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
             // (Android doesn't allow it from the background at times: it goes on without, for as long as it may.)
             false
         }
-        var shown = 0L
-        val outcome = downloads.sync(stopped = { isStopped }) { p ->
-            val now = SystemClock.elapsedRealtime()
-            if (shows && (now - shown >= NOTIFY_MS || p.done == p.total)) {
-                shown = now
-                setForegroundAsync(foregroundInfo(p))
+        // (Shown as it goes: what it's doing now, at most so often.)
+        val now = MutableStateFlow<DownloadSync.Progress?>(null)
+        val outcome = coroutineScope {
+            val showing = if (shows) {
+                launch {
+                    now.filterNotNull().collect { p ->
+                        setForegroundAsync(foregroundInfo(p))
+                        delay(NOTIFY_MS)
+                    }
+                }
+            } else {
+                null
+            }
+            try {
+                downloads.sync(stopped = { isStopped }) { now.value = it }
+            } finally {
+                showing?.cancel()
             }
         }
         return when (outcome) {
@@ -60,12 +75,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo(null)
 
+    // The playlist it's on (by its title), and how far it's got with it.
     private fun foregroundInfo(progress: DownloadSync.Progress?): ForegroundInfo {
         val context = applicationContext
-        val counted = progress?.takeIf { it.total > 0 }
+        val counted = progress?.takeIf { it.total > 0 && !it.checking }
+        val title = progress?.playlist?.let { PlexampWebApp.from(context).downloads.store.index().playlist(it)?.title }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.downloads_notification_title))
+            .setContentTitle(title ?: context.getString(R.string.downloads_notification_title))
             .setContentText(
                 if (counted != null) {
                     context.resources.getQuantityString(R.plurals.downloads_notification_progress, counted.total, counted.done, counted.total)

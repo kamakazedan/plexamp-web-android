@@ -108,8 +108,11 @@ class DownloadSyncTest {
         assertEquals(setOf(ALBUM, OTHER_ALBUM), store.index().covers.keys)
         assertNull(problem("10"))
         assertEquals(now, store.index().syncedAt)
-        assertEquals(DownloadSync.Progress(3, 3, null), progress.last())
-        assertEquals("10", progress.first().playlist)
+        // Each playlist's own progress as its tracks come ("Calm" has track 2 already as it starts).
+        assertEquals(
+            listOf(DownloadSync.Progress("10", 0, 2), DownloadSync.Progress("10", 1, 2), DownloadSync.Progress("11", 1, 2)),
+            progress,
+        )
         // Kept on disk.
         assertEquals(store.index(), DownloadStore(File(temp.root, "downloads")).index())
         // Nothing more to do next time.
@@ -119,22 +122,36 @@ class DownloadSyncTest {
     }
 
     @Test
-    fun progressCountsWhatsOnThePhoneAlready() {
+    fun progressSaysWhatsCheckedAndCountsWhatsOnThePhoneAlready() {
         add("10")
         sync()
         // Put in on the server: 2 of its 3 tracks on the phone already, the third to come.
         plex.playlists["10"] = PlexSamples.fetched("10", "Road trip", listOf(PlexSamples.track("1", thumb = ALBUM), PlexSamples.track("2", thumb = ALBUM), PlexSamples.track("5")))
         later()
         val progress = ArrayList<DownloadSync.Progress>()
-        val counting = { DownloadSync(store, plex, DownloadSettings(), { Long.MAX_VALUE }, clock = { now }, onProgress = { progress += it }).run() }
-        counting()
-        assertEquals(DownloadSync.Progress(2, 3, "10"), progress.first())
-        assertEquals(DownloadSync.Progress(3, 3, null), progress.last())
-        // Nothing to download: nothing counted.
+        val counting = { settings: DownloadSettings -> DownloadSync(store, plex, settings, { Long.MAX_VALUE }, clock = { now }, onProgress = { progress += it }).run() }
+        counting(DownloadSettings())
+        assertEquals(listOf(DownloadSync.Progress("10", checking = true), DownloadSync.Progress("10", 2, 3)), progress)
+        // Nothing to download: the check, and nothing counted.
         progress.clear()
         later()
-        counting()
-        assertEquals(listOf(DownloadSync.Progress(0, 0, null)), progress.distinct())
+        counting(DownloadSettings())
+        assertEquals(listOf(DownloadSync.Progress("10", checking = true)), progress)
+        // At another quality, each comes again: the ones on the phone now aren't counted till they have.
+        progress.clear()
+        counting(DownloadSettings(quality = "128"))
+        assertEquals(listOf(DownloadSync.Progress("10", 0, 3), DownloadSync.Progress("10", 1, 3), DownloadSync.Progress("10", 2, 3)), progress)
+    }
+
+    @Test
+    fun progressLeavesOutWhatDoesntCome() {
+        add("10")
+        add("11")
+        plex.failing += "1"
+        val progress = ArrayList<DownloadSync.Progress>()
+        DownloadSync(store, plex, DownloadSettings(), { Long.MAX_VALUE }, clock = { now }, onProgress = { progress += it }).run()
+        // Track 1 didn't come: "Road trip" has only track 2 as "Calm" starts.
+        assertEquals(listOf(DownloadSync.Progress("10", 0, 2), DownloadSync.Progress("10", 0, 2), DownloadSync.Progress("11", 1, 2)), progress)
     }
 
     @Test

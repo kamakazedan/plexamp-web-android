@@ -104,6 +104,12 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
     /** Something's been touched (or a key pressed) since the app was last opened. */
     private var touched = false
 
+    /** The player's About asked to check for updates, and that's under way: see checkPlayer. */
+    private var checkAsked = false
+
+    /** The version the player's being reloaded onto, till its page starts. */
+    private var reloadingTo: String? = null
+
     // (Downloads' progress shows in a notification: asked once, when the first starts.)
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
@@ -150,7 +156,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         }
         lifecycleScope.launch { app.resets.drop(1).collect { onPlayerForgotten() } }
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) { app.gui.updated.collect { useNewVersion() } }
+            repeatOnLifecycle(Lifecycle.State.STARTED) { app.gui.updated.collect { if (!checkAsked) useNewVersion() } }
         }
         downloadsWanted = savedInstanceState == null && intent?.action == ACTION_SHOW_DOWNLOADS
         route()
@@ -503,7 +509,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
             // (A file the page makes itself, a playlist say, comes through the bridge instead.)
             if (!url.startsWith("blob:")) openOutside(url.toUri(), userAsked = true)
         }
-        val pageBridge = PageBridge(this, app.media, app.downloads, lifecycleScope)
+        val pageBridge = PageBridge(this, app.media, app.downloads, app.updates, lifecycleScope)
         pageBridge.attach(this, view, base)
         ui.playerContainer.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         webView = view
@@ -524,6 +530,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         webView = null
         webBase = null
         server = null
+        reloadingTo = null
         app.gui.inUse = null
     }
 
@@ -552,6 +559,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
     }
 
     override fun onPlayerPageStarted() {
+        reloadingTo = null
         bridge?.onNewPage()
     }
 
@@ -612,22 +620,44 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
 
     /**
      * A newer version of the player saved than the one on screen: reloaded onto it, or
-     * Reload offered, as NewVersion says. (As the app's opened, and as one's saved.)
+     * Reload offered, as NewVersion says. (As the app's opened, and as one's saved; and,
+     * `asked`, as a check asked for ends, as if the app had just opened.)
      */
-    private fun useNewVersion() {
-        val view = webView ?: return
-        if (screen != Screen.PLAYER) return
+    private fun useNewVersion(asked: Boolean = false): NewVersion.Step {
+        val view = webView ?: return NewVersion.Step.NONE
+        if (screen != Screen.PLAYER) return NewVersion.Step.NONE
+        val newest = app.gui.current()?.id
+        if (newest != null && newest == reloadingTo) return NewVersion.Step.NONE
         val step = NewVersion.step(
             inUse = app.gui.inUse,
-            newest = app.gui.current()?.id,
-            opening = !touched,
+            newest = newest,
+            opening = !touched || asked,
             playing = app.media.state == MediaBridge.State.PLAYING,
             waiting = handoff != null || webSignIn || filesCallback != null || fileToSave != null,
         )
         when (step) {
-            NewVersion.Step.RELOAD -> view.reload()
+            NewVersion.Step.RELOAD -> {
+                reloadingTo = newest
+                view.reload()
+            }
             NewVersion.Step.OFFER -> offerReload(view)
             NewVersion.Step.NONE -> Unit
+        }
+        return step
+    }
+
+    // (The player's About, "Check for updates": see AppBridge.)
+    override suspend fun checkPlayer(): String {
+        checkAsked = true
+        try {
+            val outcome = app.gui.start().await()
+            return when (useNewVersion(asked = true)) {
+                NewVersion.Step.RELOAD -> "reloading"
+                NewVersion.Step.OFFER -> "offered"
+                NewVersion.Step.NONE -> if (outcome is GuiUpdater.Outcome.Failed) "failed" else "same"
+            }
+        } finally {
+            checkAsked = false
         }
     }
 
