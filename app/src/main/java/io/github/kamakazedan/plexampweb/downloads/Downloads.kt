@@ -44,6 +44,10 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
     @Volatile
     private var progress: DownloadSync.Progress? = null
 
+    /** When the player asked for a check (see check), till a sync starts. */
+    @Volatile
+    private var checkAsked = 0L
+
     private val _changes = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     /** Something the player shows changed: the player's told (see DownloadBridge). */
@@ -74,7 +78,7 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
                     .put("title", p.title)
                     .put("tracks", p.tracks.size)
                     .put("saved", index.savedOf(p))
-                    .put("bytes", index.bytesOf(p))
+                    .put("bytes", store.bytesOf(p))
                     .putOpt("problem", p.problem)
                     // (Its first album cover on the phone: its picture, offline too.)
                     .putOpt("cover", p.tracks.firstNotNullOfOrNull { id -> index.tracks[id]?.cover?.takeIf { it in index.covers } }),
@@ -93,8 +97,13 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
     private fun status(index: DownloadIndex): JSONObject {
         progress?.let { return JSONObject().put("state", "downloading").put("done", it.done).put("total", it.total).putOpt("playlist", it.playlist) }
         val trouble = prefs.downloadsTrouble
+        val asked = System.currentTimeMillis() - checkAsked in 0 until CHECK_MS
         val state = when {
             index.playlists.isEmpty() -> "idle"
+            // (Asked to check: it waits for a network it may use, or it's about to start.)
+            asked && !Connectivity.isOnline(context) -> "offline"
+            asked && settings.network == DownloadSettings.WIFI && !Connectivity.isUnmetered(context) -> "wifi"
+            asked -> return JSONObject().put("state", "downloading")
             trouble != null -> trouble
             // (Tracks not tried yet: those that were say why on their playlist.)
             index.playlists.none { it.problem == null && index.savedOf(it) < it.tracks.size } -> "idle"
@@ -180,6 +189,20 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
         changed()
     }
 
+    /**
+     * Brought up to date now, each playlist asked about again (Settings › Downloads'
+     * "Up to date", tapped): on a network downloads may use, as ever.
+     */
+    suspend fun check() = withContext(Dispatchers.IO) {
+        if (store.index().playlists.isEmpty()) return@withContext
+        checkAsked = System.currentTimeMillis()
+        store.askAgain()
+        // (A sync under way goes round again. With none, one waiting to try the server
+        // again later, after it couldn't be reached, tries now instead.)
+        DownloadWorker.schedule(context, settings, restart = progress == null)
+        changed()
+    }
+
     /** Signed out: every download, and the sign-in kept for them, gone. */
     suspend fun forget() = withContext(Dispatchers.IO) { forgetNow() }
 
@@ -226,10 +249,13 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
             )
             val outcome = try {
                 progress = DownloadSync.Progress(0, 0, null)
+                checkAsked = 0
                 changed()
                 sync.run()
             } finally {
                 progress = null
+                // (Asked meanwhile: the sync went round again for it.)
+                checkAsked = 0
             }
             when (outcome) {
                 DownloadSync.Outcome.DONE -> prefs.downloadsTrouble = null
@@ -274,5 +300,8 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
     private companion object {
         /** Opening the player checks for changes, where it's been this long. */
         const val STALE_MS = 60 * 60 * 1000L
+
+        /** A check asked for shows as starting for this long at most (till the sync does). */
+        const val CHECK_MS = 2 * 60 * 1000L
     }
 }

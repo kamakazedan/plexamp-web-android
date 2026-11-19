@@ -52,6 +52,29 @@ class DownloadStoreTest {
     }
 
     @Test
+    fun aPlaylistsSizeIsCountedAsWhatDownloadsUseIs() {
+        val store = store()
+        store.addPlaylist(playlist("10", "1", "2", "2"), "{}")
+        download(store, "1", "one", cover = "/c/1")
+        download(store, "2", "two!", cover = "/c/1")
+        store.putCover("/c/1", store.coverPart("/c/1").apply { writeText("jpeg") })
+        // Its tracks and their album's cover, each once: all there is, here.
+        assertEquals(3L + 4L + 4L, store.bytesOf(store.index().playlist("10")!!))
+        assertEquals(store.bytesUsed(), store.bytesOf(store.index().playlist("10")!!))
+    }
+
+    @Test
+    fun askedAboutAgain() {
+        val store = store()
+        store.addPlaylist(playlist("10", "1").copy(checkedAt = now), "{}")
+        val generation = store.generation
+        store.askAgain()
+        assertEquals(0L, store.index().playlist("10")!!.checkedAt)
+        assertNotEquals(generation, store.generation)
+        assertEquals(0L, store().index().playlist("10")!!.checkedAt)
+    }
+
+    @Test
     fun aTrackNoPlaylistHasAnyMoreIsntKept() {
         val store = store()
         store.addPlaylist(playlist("10", "1"), "{}")

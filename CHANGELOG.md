@@ -3,6 +3,23 @@
 What changed in each version of plexamp-web for Android, newest first. The
 version you're running is in **Settings** (long-press the app's icon).
 
+## 0.2.3 - 2026-11-19
+
+### Added
+
+- **Check now**: tap **Up to date** in Settings › Downloads to check your
+  playlists for changes straight away, on the network you allow, or tap the
+  message that your server couldn't be reached to try it again now (it needs
+  plexamp-web 0.40.2 or later).
+
+### Changed
+
+- **Download progress counts as each playlist does**: Settings › Downloads and
+  the notification count every track on the phone ("76 of 78 tracks"), not only
+  those downloaded this time ("1 of 3"), so the numbers agree.
+- **A playlist's size includes its covers**, as what downloads use does, so the
+  two agree.
+
 ## 0.2.2 - 2026-11-19
 
 ### Fixed
