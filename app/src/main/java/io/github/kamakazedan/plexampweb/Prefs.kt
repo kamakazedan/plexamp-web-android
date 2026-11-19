@@ -102,6 +102,15 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean(ASKED_NOTIFICATIONS, false)
         set(value) = prefs.edit { putBoolean(ASKED_NOTIFICATIONS, value) }
 
+    /** The app's newest version on GitHub, and where to get it, as last found (see AppUpdates). */
+    var appNewest: String?
+        get() = prefs.getString(APP_NEWEST, null)
+        set(value) = prefs.edit { if (value == null) remove(APP_NEWEST) else putString(APP_NEWEST, value) }
+
+    var appNewestUrl: String?
+        get() = prefs.getString(APP_NEWEST_URL, null)
+        set(value) = prefs.edit { if (value == null) remove(APP_NEWEST_URL) else putString(APP_NEWEST_URL, value) }
+
     fun addMiss(path: String) {
         val now = misses
         if (path !in now && now.size < MAX_MISSES) misses = now + path
@@ -138,6 +147,8 @@ class Prefs(context: Context) {
         const val DOWNLOADS_OWNER = "downloadsOwner"
         const val DOWNLOADS_TROUBLE = "downloadsTrouble"
         const val ASKED_NOTIFICATIONS = "askedNotifications"
+        const val APP_NEWEST = "appNewest"
+        const val APP_NEWEST_URL = "appNewestUrl"
         const val MAX_MISSES = 50
     }
 }

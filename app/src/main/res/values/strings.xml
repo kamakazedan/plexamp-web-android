@@ -71,13 +71,13 @@
     <string name="action_next">Next</string>
     <string name="action_previous">Previous</string>
 
-    <!-- Downloads, in a notification while they come -->
+    <!-- Downloads, in a notification while they come: titled with the playlist it's on -->
     <string name="downloads_channel">Downloads</string>
     <string name="downloads_channel_description">Playlists downloading to this phone.</string>
     <string name="downloads_notification_title">Downloading playlists</string>
     <plurals name="downloads_notification_progress">
-        <item quantity="one">%1$d of %2$d track</item>
-        <item quantity="other">%1$d of %2$d tracks</item>
+        <item quantity="one">Downloading… %1$d of %2$d track</item>
+        <item quantity="other">Downloading… %1$d of %2$d tracks</item>
     </plurals>
     <string name="downloads_notification_checking">Checking for changes</string>
 

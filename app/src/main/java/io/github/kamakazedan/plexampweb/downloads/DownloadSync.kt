@@ -23,11 +23,11 @@ class DownloadSync(
     private val onProgress: (Progress) -> Unit = {},
 ) {
     /**
-     * Of every track the playlists have (each once), `done` of `total` on the phone as they
-     * should be, counted as Settings › Downloads counts each playlist's; and the playlist the
-     * one coming is in. 0 of 0 while there's nothing to download.
+     * What it's doing: asking the server about `playlist` (`checking`), or downloading its
+     * tracks, `done` of its `total` on the phone as they should be (counted as Settings ›
+     * Downloads counts a playlist's). `playlist` is null while it's neither (starting, say).
      */
-    data class Progress(val done: Int, val total: Int, val playlist: String?)
+    data class Progress(val playlist: String?, val done: Int = 0, val total: Int = 0, val checking: Boolean = false)
 
     enum class Outcome {
         /** Up to date (save for what didn't fit, or didn't come: see each playlist's problem). */
@@ -67,24 +67,23 @@ class DownloadSync(
         refresh()
         store.removeUnwanted()
         store.flush()
-        val queue = toDownload()
-        val before = if (queue.isEmpty()) 0 else (store.index().wanted().size - queue.size).coerceAtLeast(0)
-        val total = if (queue.isEmpty()) 0 else before + queue.size
+        val index = store.index()
+        val queue = toDownload(index)
+        val counts = Counting(index, queue)
         val problems = HashMap<String, String?>()
-        store.index().playlists.forEach { problems[it.id] = null }
-        var done = 0
+        index.playlists.forEach { problems[it.id] = null }
         var troubleInARow = 0
         var lastFlush = clock()
-        onProgress(Progress(before, total, queue.firstOrNull()?.playlists?.first()))
         for (item in queue) {
             if (stopped()) throw PlexSource.Stopped()
             val kbps = DownloadRules.kbpsFor(item.spec, settings.quality, playable)
             if (DownloadRules.estimate(item.spec, kbps) > room()) {
                 item.playlists.forEach { problems[it] = SavedPlaylist.SPACE }
             } else {
-                onProgress(Progress(before + done, total, item.playlists.first()))
+                // (The first playlist it's in: the one the queue's got to.)
+                onProgress(counts.of(item.playlists.first()))
                 try {
-                    fetch(item.spec, kbps)
+                    if (fetch(item.spec, kbps)) counts.got(item.spec.id)
                     troubleInARow = 0
                 } catch (e: Exception) {
                     if (e is PlexSource.Unreachable || e is PlexSource.SignInRefused || e is PlexSource.Stopped) throw e
@@ -94,7 +93,6 @@ class DownloadSync(
                     if (!trackOnly && ++troubleInARow >= MAX_TROUBLE) throw PlexSource.Unreachable(e)
                 }
             }
-            done++
             if (clock() - lastFlush > FLUSH_MS) {
                 store.flush()
                 lastFlush = clock()
@@ -102,7 +100,6 @@ class DownloadSync(
         }
         store.setProblems(problems)
         store.update { it.copy(syncedAt = clock()) }
-        onProgress(Progress(total, total, null))
         return Outcome.DONE
     }
 
@@ -111,6 +108,7 @@ class DownloadSync(
         for (p in store.index().playlists) {
             if (stopped()) throw PlexSource.Stopped()
             if (clock() - p.checkedAt in 0 until FRESH_MS) continue
+            onProgress(Progress(p.id, checking = true))
             val now = try {
                 source.playlist(p.id)
             } catch (e: Exception) {
@@ -124,9 +122,40 @@ class DownloadSync(
 
     private class Wanted(val spec: TrackSpec, val playlists: MutableList<String>)
 
+    // Each playlist's tracks on the phone as they should be, as the queue goes: counted as
+    // Settings › Downloads counts a playlist's (a track it has twice, twice).
+    private class Counting(index: DownloadIndex, queue: List<Wanted>) {
+        private val total = HashMap<String, Int>()
+        private val done = HashMap<String, Int>()
+
+        /** Each track still to come: the playlists it's in, once for each time it's there. */
+        private val within = HashMap<String, MutableList<String>>()
+
+        init {
+            val coming = queue.mapTo(HashSet()) { it.spec.id }
+            for (p in index.playlists) {
+                total[p.id] = p.tracks.size
+                var have = 0
+                for (id in p.tracks) {
+                    when {
+                        id in coming -> within.getOrPut(id) { ArrayList() } += p.id
+                        id in index.tracks -> have++
+                    }
+                }
+                done[p.id] = have
+            }
+        }
+
+        fun of(playlist: String) = Progress(playlist, done[playlist] ?: 0, total[playlist] ?: 0)
+
+        /** A track's on the phone now, as it should be. */
+        fun got(track: String) {
+            within.remove(track)?.forEach { done[it] = (done[it] ?: 0) + 1 }
+        }
+    }
+
     // Tracks not on the phone as they should be (or not at all), each once, in the playlists' order.
-    private fun toDownload(): List<Wanted> {
-        val index = store.index()
+    private fun toDownload(index: DownloadIndex): List<Wanted> {
         val queue = LinkedHashMap<String, Wanted>()
         for (p in index.playlists) {
             for (spec in specsIn(store.playlistJson(p.id))) {
@@ -138,7 +167,8 @@ class DownloadSync(
         return queue.values.toList()
     }
 
-    private fun fetch(spec: TrackSpec, kbps: Int?) {
+    // Whether it's kept (it isn't where no playlist wants it any more).
+    private fun fetch(spec: TrackSpec, kbps: Int?): Boolean {
         val version = DownloadRules.versionOf(spec, settings.quality, playable)
         val part = store.partFile(spec.id, version)
         val extension = if (kbps == null) {
@@ -149,7 +179,9 @@ class DownloadSync(
         }
         val name = store.fileName(spec.id, version, extension)
         val saved = SavedTrack(spec.id, name, part.length(), DownloadRules.mimeOf(name), version, spec.cover)
-        if (store.commit(saved, part)) spec.cover?.let(::fetchCover)
+        if (!store.commit(saved, part)) return false
+        spec.cover?.let(::fetchCover)
+        return true
     }
 
     // An album's cover, once (best effort: one that doesn't come is asked for next time).

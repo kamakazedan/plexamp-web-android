@@ -95,7 +95,13 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
     }
 
     private fun status(index: DownloadIndex): JSONObject {
-        progress?.let { return JSONObject().put("state", "downloading").put("done", it.done).put("total", it.total).putOpt("playlist", it.playlist) }
+        // (The playlist it's on: being checked, or downloading, so far of its tracks.)
+        progress?.let { p ->
+            val now = JSONObject().put("state", "downloading").putOpt("playlist", p.playlist)
+            if (p.checking) now.put("checking", true)
+            if (p.total > 0) now.put("done", p.done).put("total", p.total)
+            return now
+        }
         val trouble = prefs.downloadsTrouble
         val asked = System.currentTimeMillis() - checkAsked in 0 until CHECK_MS
         val state = when {
@@ -248,7 +254,7 @@ class Downloads(private val context: Context, private val prefs: Prefs) {
                 },
             )
             val outcome = try {
-                progress = DownloadSync.Progress(0, 0, null)
+                progress = DownloadSync.Progress(null)
                 checkAsked = 0
                 changed()
                 sync.run()
