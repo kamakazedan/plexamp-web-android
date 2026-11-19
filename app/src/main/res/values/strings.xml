@@ -71,6 +71,16 @@
     <string name="action_next">Next</string>
     <string name="action_previous">Previous</string>
 
+    <!-- Downloads, in a notification while they come -->
+    <string name="downloads_channel">Downloads</string>
+    <string name="downloads_channel_description">Playlists downloading to this phone.</string>
+    <string name="downloads_notification_title">Downloading playlists</string>
+    <plurals name="downloads_notification_progress">
+        <item quantity="one">%1$d of %2$d track</item>
+        <item quantity="other">%1$d of %2$d tracks</item>
+    </plurals>
+    <string name="downloads_notification_checking">Checking for changes</string>
+
     <!-- Settings -->
     <string name="shortcut_settings">Settings</string>
     <string name="settings_title">Settings</string>
@@ -79,7 +89,7 @@
     <string name="settings_no_player">No player yet</string>
     <string name="settings_other_player">Use another player</string>
     <string name="settings_forget_title">Use another player?</string>
-    <string name="settings_forget_body">This signs you out here, and forgets this player and its saved copy.</string>
+    <string name="settings_forget_body">This signs you out here, and forgets this player, its saved copy and your downloads.</string>
     <string name="settings_forget_ok">Sign out</string>
     <string name="settings_saved">Saved copy</string>
     <string name="settings_saved_version">Version %1$s, saved %2$s</string>

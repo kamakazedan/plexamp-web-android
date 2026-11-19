@@ -11,10 +11,14 @@
 //   asks where to save them.
 // - Sharing (navigator.share, which a WebView hasn't got) opens Android's
 //   share sheet.
+// - Downloads: playlists kept on the phone (window.plexampAndroid.downloads, the
+//   one thing here the web app asks for by name: see its js/downloads.js). The
+//   page asks the app, and is told as they change.
 //
-// Nothing else goes to the app, and the app sends nothing but those buttons.
-// How the web app saves and shares (a Blob's link, clicked; text, not files) is
-// listed in plexamp-web's docs/android-app.md, and its CI fails where it changes.
+// Nothing else goes to the app, and the app sends nothing but those buttons and
+// downloads' answers. How the web app saves and shares (a Blob's link, clicked;
+// text, not files) and uses downloads is listed in plexamp-web's
+// docs/android-app.md, and its CI fails where it changes.
 (() => {
   'use strict';
   if (window.top !== window || window.__plexampAndroid) return;
@@ -36,6 +40,7 @@
       } catch {
         return;
       }
+      if (msg && (msg.type === 'downloads' || msg.type === 'downloads-state')) return onDownloads(msg);
       if (!msg || msg.type !== 'action') return;
       const handler = handlers.get(msg.action);
       if (typeof handler !== 'function') return;
@@ -193,6 +198,80 @@
       value: (data = {}) => !data.files && !!(data.text || data.url),
     });
   }
+
+  // ---------- downloads ----------
+
+  // Each question's answer, by its id; and who's told when downloads change.
+  const asked = new Map();
+  const watchers = new Set();
+  let nextId = 1;
+
+  const ask = (op, args = {}) =>
+    new Promise((resolve, reject) => {
+      if (!port()) return reject(Object.assign(new Error('gone'), { code: 'gone' }));
+      const id = nextId++;
+      // (Adding a long playlist asks the server a while: but not for ever.)
+      const timer = setTimeout(() => {
+        asked.delete(id);
+        reject(Object.assign(new Error('timeout'), { code: 'timeout' }));
+      }, 180000);
+      asked.set(id, { resolve, reject, timer });
+      send({ ...args, type: 'downloads', id, op });
+    });
+
+  const tell = (state) => {
+    for (const fn of watchers) {
+      try {
+        fn(state);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  function onDownloads(msg) {
+    if (msg.type === 'downloads-state') return msg.state && tell(msg.state);
+    const q = asked.get(msg.id);
+    if (!q) return;
+    asked.delete(msg.id);
+    clearTimeout(q.timer);
+    if (!msg.ok) {
+      const error = msg.error && typeof msg.error === 'object' ? msg.error : {};
+      return q.reject(Object.assign(new Error(String(error.code || 'failed')), error));
+    }
+    if (msg.state) tell(msg.state);
+    q.resolve(msg.state);
+  }
+
+  // Where the app answers with what's downloaded: at the player's own address.
+  const local = (path) => new URL(`__plexamp-web-android/downloads/${path}`, document.baseURI).href;
+  const str = (v) => (v == null ? null : String(v));
+
+  const downloads = Object.freeze({
+    state: () => ask('state'),
+    add: (playlist) => ask('add', { playlist: String(playlist) }),
+    remove: (playlist) => ask('remove', { playlist: String(playlist) }),
+    set: (s = {}) => ask('set', { quality: str(s.quality), network: str(s.network), prefer: str(s.prefer) }),
+    account: (a = {}) =>
+      ask('account', {
+        serverId: text(a.serverId),
+        token: text(a.token),
+        user: text(a.user),
+        uris: Array.from(a.uris || []).map(String),
+        device: text(a.device),
+      }),
+    forget: () => ask('forget'),
+    bad: (track) => ask('bad', { track: String(track) }),
+    // `fn(state)` each time downloads change: returns what stops it.
+    watch: (fn) => {
+      watchers.add(fn);
+      return () => watchers.delete(fn);
+    },
+    trackUrl: (id) => local(`track/${encodeURIComponent(id)}`),
+    playlistUrl: (id) => local(`playlist/${encodeURIComponent(id)}`),
+    coverUrl: (path) => local(`cover?path=${encodeURIComponent(path)}`),
+  });
+  Object.defineProperty(window, 'plexampAndroid', { value: Object.freeze({ downloads }) });
 
   send({ type: 'hello' });
   document.addEventListener('DOMContentLoaded', listen, { once: true });
