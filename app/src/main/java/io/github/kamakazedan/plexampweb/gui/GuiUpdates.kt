@@ -19,8 +19,8 @@ import java.io.File
 /**
  * When the player is saved on the phone: first while setting up (on any connection),
  * then whenever there's a new version, on Wi-Fi only: when the app opens, when the
- * phone joins Wi-Fi, and every few hours in the background (GuiUpdateWorker). A new
- * version is used the next time the player opens (or reloads).
+ * phone joins Wi-Fi, and every few hours in the background (GuiUpdateWorker). The page
+ * on screen moves to a new version as NewVersion says.
  *
  * Its own methods are for the main thread.
  */
@@ -81,6 +81,7 @@ class GuiUpdates(private val app: PlexampWebApp) {
             is GuiUpdater.Outcome.Saved -> if (outcome.changed) "updated" else "same"
             is GuiUpdater.Outcome.Failed -> "failed"
         }
+        prefs.lastCheckProblem = (outcome as? GuiUpdater.Outcome.Failed)?.code
         if (outcome is GuiUpdater.Outcome.Saved) {
             prefs.misses = prefs.misses - outcome.snapshot.files.keys
             if (outcome.changed && previous != null) _updated.tryEmit(outcome.snapshot)

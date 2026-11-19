@@ -43,7 +43,19 @@ class GuiUpdater(
         /** Saved: a new version (`changed`), or the same as before. */
         data class Saved(val snapshot: GuiSnapshot, val changed: Boolean) : Outcome
 
-        data class Failed(val reason: Reason, val status: Int = 0) : Outcome
+        data class Failed(val reason: Reason, val status: Int = 0) : Outcome {
+            /** As the app keeps it, to say in Settings why the last check failed: "REFUSED 403". */
+            val code: String get() = "${reason.name} $status"
+
+            companion object {
+                /** A `code` read back: null where it isn't one. */
+                fun of(code: String?): Failed? {
+                    val parts = code?.split(' ')?.takeIf { it.size == 2 } ?: return null
+                    val reason = Reason.entries.firstOrNull { it.name == parts[0] } ?: return null
+                    return Failed(reason, parts[1].toIntOrNull() ?: return null)
+                }
+            }
+        }
     }
 
     enum class Reason {

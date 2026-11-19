@@ -105,4 +105,11 @@
     <string name="outcome_updated">updated</string>
     <string name="outcome_up_to_date">up to date</string>
     <string name="outcome_failed">couldn\'t check</string>
+    <string name="outcome_failed_unreachable">couldn\'t check (no answer)</string>
+    <string name="outcome_failed_not_player">couldn\'t check (something else answered)</string>
+    <string name="outcome_failed_password">couldn\'t check (it asks for a password)</string>
+    <string name="outcome_failed_refused">couldn\'t check (refused, %1$d)</string>
+    <string name="outcome_failed_error">couldn\'t check (error %1$d)</string>
+    <string name="outcome_failed_too_big">couldn\'t check (too many files)</string>
+    <string name="outcome_failed_storage">couldn\'t check (couldn\'t save it)</string>
 </resources>

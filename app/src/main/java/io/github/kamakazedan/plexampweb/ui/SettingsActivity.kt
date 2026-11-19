@@ -17,6 +17,7 @@ import io.github.kamakazedan.plexampweb.BuildConfig
 import io.github.kamakazedan.plexampweb.PlexampWebApp
 import io.github.kamakazedan.plexampweb.R
 import io.github.kamakazedan.plexampweb.databinding.ActivitySettingsBinding
+import io.github.kamakazedan.plexampweb.gui.GuiUpdater
 import kotlinx.coroutines.launch
 
 /**
@@ -74,7 +75,7 @@ class SettingsActivity : AppCompatActivity() {
         ui.lastCheck.text = if (at == 0L) {
             getString(R.string.settings_never_checked)
         } else {
-            getString(R.string.settings_last_check, agoOf(at), outcomeOf(app.prefs.lastCheckOutcome))
+            getString(R.string.settings_last_check, agoOf(at), outcomeOf(app.prefs.lastCheckOutcome, app.prefs.lastCheckProblem))
         }
     }
 
@@ -90,13 +91,25 @@ class SettingsActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun outcomeOf(outcome: String?): String = getString(
-        when (outcome) {
-            "updated" -> R.string.outcome_updated
-            "same" -> R.string.outcome_up_to_date
-            else -> R.string.outcome_failed
-        },
-    )
+    private fun outcomeOf(outcome: String?, problem: String?): String = when (outcome) {
+        "updated" -> getString(R.string.outcome_updated)
+        "same" -> getString(R.string.outcome_up_to_date)
+        else -> failedOf(GuiUpdater.Outcome.Failed.of(problem))
+    }
+
+    /** Why a check failed, in a word or two: where to look first. */
+    private fun failedOf(failed: GuiUpdater.Outcome.Failed?): String {
+        if (failed == null) return getString(R.string.outcome_failed)
+        return when (failed.reason) {
+            GuiUpdater.Reason.UNREACHABLE -> getString(R.string.outcome_failed_unreachable)
+            GuiUpdater.Reason.NOT_PLAYER -> getString(R.string.outcome_failed_not_player)
+            GuiUpdater.Reason.REFUSED ->
+                if (failed.status == 401) getString(R.string.outcome_failed_password) else getString(R.string.outcome_failed_refused, failed.status)
+            GuiUpdater.Reason.MISSING -> getString(R.string.outcome_failed_error, failed.status)
+            GuiUpdater.Reason.TOO_BIG -> getString(R.string.outcome_failed_too_big)
+            GuiUpdater.Reason.STORAGE -> getString(R.string.outcome_failed_storage)
+        }
+    }
 
     private fun dateOf(time: Long): String = DateUtils.formatDateTime(
         this,
