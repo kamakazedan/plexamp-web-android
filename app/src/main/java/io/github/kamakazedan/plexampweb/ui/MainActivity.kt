@@ -1,10 +1,13 @@
 package io.github.kamakazedan.plexampweb.ui
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
@@ -39,6 +42,7 @@ import io.github.kamakazedan.plexampweb.Prefs
 import io.github.kamakazedan.plexampweb.R
 import io.github.kamakazedan.plexampweb.auth.PlexSignIn
 import io.github.kamakazedan.plexampweb.databinding.ActivityMainBinding
+import io.github.kamakazedan.plexampweb.downloads.DownloadServer
 import io.github.kamakazedan.plexampweb.gui.GuiUpdateWorker
 import io.github.kamakazedan.plexampweb.gui.GuiUpdater
 import io.github.kamakazedan.plexampweb.net.Connectivity
@@ -90,6 +94,12 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
     private var filesCallback: ValueCallback<Array<Uri>>? = null
     private var fileToSave: ByteArray? = null
 
+    /** The player's Settings › Downloads is wanted (from the downloads' notification). */
+    private var downloadsWanted = false
+
+    // (Downloads' progress shows in a notification: asked once, when the first starts.)
+    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
     private val pickFiles = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uris = if (result.resultCode == RESULT_OK) urisFrom(result.data) else null
         filesCallback?.onReceiveValue(uris)
@@ -135,7 +145,15 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) { app.gui.updated.collect { offerReload() } }
         }
+        downloadsWanted = savedInstanceState == null && intent?.action == ACTION_SHOW_DOWNLOADS
         route()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action != ACTION_SHOW_DOWNLOADS) return
+        downloadsWanted = true
+        if (screen == Screen.PLAYER) showPlayer()
     }
 
     override fun onStart() {
@@ -426,6 +444,10 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
                 view.loadUrl(base + GuiServer.HANDOFF_PATH)
             }
             webSignIn -> view.loadUrl("$base#/login")
+            downloadsWanted -> {
+                downloadsWanted = false
+                view.loadUrl("$base#$DOWNLOADS_ROUTE")
+            }
             view.url == null -> view.loadUrl(base)
         }
     }
@@ -454,14 +476,14 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
             app.prefs.clearWebCache = false
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(view, false)
-        val guiServer = GuiServer(app.gui, base)
+        val guiServer = GuiServer(app.gui, base, DownloadServer(app.downloads))
         view.webViewClient = PlayerClient(this, guiServer)
         view.webChromeClient = PlayerChrome(this)
         view.setDownloadListener { url, _, _, _, _ ->
             // (A file the page makes itself, a playlist say, comes through the bridge instead.)
             if (!url.startsWith("blob:")) openOutside(url.toUri(), userAsked = true)
         }
-        val pageBridge = PageBridge(this, app.media)
+        val pageBridge = PageBridge(this, app.media, app.downloads, lifecycleScope)
         pageBridge.attach(this, view, base)
         ui.playerContainer.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         webView = view
@@ -639,6 +661,13 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         }
     }
 
+    override fun onDownloadsStarted() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || app.prefs.askedForNotifications) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        app.prefs.askedForNotifications = true
+        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     override fun share(title: String?, text: String) {
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
         if (title != null) send.putExtra(Intent.EXTRA_SUBJECT, title)
@@ -666,10 +695,16 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
 
     private fun toast(@StringRes text: Int) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
-    private companion object {
+    companion object {
+        /** Opens the player's Settings › Downloads (the downloads' notification). */
+        const val ACTION_SHOW_DOWNLOADS = "io.github.kamakazedan.plexampweb.SHOW_DOWNLOADS"
+
+        /** The player's page for downloads (listed in plexamp-web's docs/android-app.md). */
+        private const val DOWNLOADS_ROUTE = "/settings/downloads"
+
         /** As long as plex.tv keeps a sign-in waiting (and the web app waits for one). */
-        const val PIN_TTL_MS = 15 * 60 * 1000L
-        const val PIN_POLL_MS = 2000L
-        const val UPDATE_NOTICE_MS = 10_000
+        private const val PIN_TTL_MS = 15 * 60 * 1000L
+        private const val PIN_POLL_MS = 2000L
+        private const val UPDATE_NOTICE_MS = 10_000
     }
 }

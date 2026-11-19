@@ -2,6 +2,7 @@ package io.github.kamakazedan.plexampweb.net
 
 import android.os.Build
 import io.github.kamakazedan.plexampweb.BuildConfig
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -11,7 +12,7 @@ import java.util.Locale
 
 /**
  * The app's own requests (the player's address check, plex.tv, saving the player,
- * artwork for the lock screen). Blocking: call it off the main thread. Redirects
+ * artwork for the lock screen, downloads). Blocking: call it off the main thread. Redirects
  * aren't followed (each caller decides), nothing is cached, and nothing is logged:
  * addresses can carry a Plex token.
  */
@@ -25,6 +26,11 @@ object Http {
 
     class TooLarge : IOException("The answer was larger than expected.")
 
+    /** An answer read as it comes (a track's file, say): see stream. */
+    class Streamed(val status: Int, private val conn: HttpURLConnection, val body: InputStream) {
+        fun header(name: String): String? = conn.getHeaderField(name)
+    }
+
     fun request(
         url: String,
         method: String = "GET",
@@ -34,16 +40,8 @@ object Http {
         connectTimeoutMs: Int = 15_000,
         readTimeoutMs: Int = 30_000,
     ): Response {
-        // (Only http:// and https://: a redirect could name file: or jar:, which aren't.)
-        val conn = URL(url).openConnection() as? HttpURLConnection ?: throw IOException("Not an http:// or https:// address.")
+        val conn = open(url, method, headers, connectTimeoutMs, readTimeoutMs)
         try {
-            conn.requestMethod = method
-            conn.instanceFollowRedirects = false
-            conn.useCaches = false
-            conn.connectTimeout = connectTimeoutMs
-            conn.readTimeout = readTimeoutMs
-            conn.setRequestProperty("User-Agent", userAgent)
-            for ((name, value) in headers) conn.setRequestProperty(name, value)
             if (body != null) {
                 conn.doOutput = true
                 conn.setFixedLengthStreamingMode(body.size)
@@ -61,6 +59,41 @@ object Http {
             conn.disconnect()
             throw e
         }
+    }
+
+    /**
+     * A GET whose answer `read` reads as it comes, however large: the connection's
+     * closed once it's done.
+     */
+    fun <T> stream(
+        url: String,
+        headers: Map<String, String> = emptyMap(),
+        connectTimeoutMs: Int = 15_000,
+        readTimeoutMs: Int = 30_000,
+        read: (Streamed) -> T,
+    ): T {
+        val conn = open(url, "GET", headers, connectTimeoutMs, readTimeoutMs)
+        try {
+            val status = conn.responseCode
+            val body = (if (status >= 400) conn.errorStream else conn.inputStream) ?: ByteArrayInputStream(ByteArray(0))
+            return body.use { read(Streamed(status, conn, it)) }
+        } catch (e: Throwable) {
+            conn.disconnect()
+            throw e
+        }
+    }
+
+    private fun open(url: String, method: String, headers: Map<String, String>, connectTimeoutMs: Int, readTimeoutMs: Int): HttpURLConnection {
+        // (Only http:// and https://: a redirect could name file: or jar:, which aren't.)
+        val conn = URL(url).openConnection() as? HttpURLConnection ?: throw IOException("Not an http:// or https:// address.")
+        conn.requestMethod = method
+        conn.instanceFollowRedirects = false
+        conn.useCaches = false
+        conn.connectTimeout = connectTimeoutMs
+        conn.readTimeout = readTimeoutMs
+        conn.setRequestProperty("User-Agent", userAgent)
+        for ((name, value) in headers) conn.setRequestProperty(name, value)
+        return conn
     }
 
     private fun readUpTo(input: InputStream, max: Int): ByteArray {
