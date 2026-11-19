@@ -3,6 +3,13 @@
 What changed in each version of plexamp-web for Android, newest first. The
 version you're running is in **Settings** (long-press the app's icon).
 
+## 0.2.1 - 2026-11-19
+
+### Changed
+
+- **The app's icon is in Plex's colours**: gold on charcoal, in the same shape
+  as before. Its Settings shortcut too.
+
 ## 0.2.0 - 2026-11-18
 
 ### Added

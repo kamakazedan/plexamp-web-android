@@ -10,5 +10,5 @@
     <color name="surface">#FF34363A</color>
     <color name="tint_hi">#FF7B8FC7</color>
     <color name="danger">#FFFF8A80</color>
-    <color name="icon_bg">#FF232B40</color>
+    <color name="icon_bg">#FF1F1F1F</color>
 </resources>
