@@ -3,6 +3,22 @@
 What changed in each version of plexamp-web for Android, newest first. The
 version you're running is in **Settings** (long-press the app's icon).
 
+## 0.2.2 - 2026-11-19
+
+### Fixed
+
+- **A new version of the player shows up without closing the app.** The player
+  on screen kept the version it opened with till the app was closed completely
+  (Back only hides it, and it keeps running while music plays), so a new version
+  saved meanwhile waited unseen. Now the player moves to it as you open the app,
+  or as soon as it's saved if you haven't touched anything since. With music
+  playing, **Reload** is offered instead, so the music isn't cut off, and the
+  next time you open the app without music playing it moves by itself. The
+  player brings its queue back, paused where it was.
+- **Settings say why a check for a new version failed**: no answer, refused
+  (with the code your player, or something in front of it, answered), something
+  else answered (a sign-in page put in front of the player, say), and so on.
+
 ## 0.2.1 - 2026-11-19
 
 ### Changed

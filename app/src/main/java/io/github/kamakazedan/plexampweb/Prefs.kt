@@ -56,6 +56,11 @@ class Prefs(context: Context) {
         get() = prefs.getString(LAST_CHECK_OUTCOME, null)
         set(value) = prefs.edit { putString(LAST_CHECK_OUTCOME, value) }
 
+    /** Why it failed, where it did (GuiUpdater.Outcome.Failed.code): "REFUSED 403". */
+    var lastCheckProblem: String?
+        get() = prefs.getString(LAST_CHECK_PROBLEM, null)
+        set(value) = prefs.edit { if (value == null) remove(LAST_CHECK_PROBLEM) else putString(LAST_CHECK_PROBLEM, value) }
+
     /**
      * Files the page asked for that the saved copy hadn't got: saved too, next time
      * the player is.
@@ -110,6 +115,7 @@ class Prefs(context: Context) {
         remove(PIN_AT)
         remove(LAST_CHECK_AT)
         remove(LAST_CHECK_OUTCOME)
+        remove(LAST_CHECK_PROBLEM)
         remove(MISSES)
     }
 
@@ -123,6 +129,7 @@ class Prefs(context: Context) {
         const val PIN_AT = "pinAt"
         const val LAST_CHECK_AT = "lastCheckAt"
         const val LAST_CHECK_OUTCOME = "lastCheckOutcome"
+        const val LAST_CHECK_PROBLEM = "lastCheckProblem"
         const val MISSES = "misses"
         const val CLEAR_WEB_CACHE = "clearWebCache"
         const val DOWNLOAD_QUALITY = "downloadQuality"

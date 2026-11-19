@@ -9,6 +9,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
@@ -45,6 +47,8 @@ import io.github.kamakazedan.plexampweb.databinding.ActivityMainBinding
 import io.github.kamakazedan.plexampweb.downloads.DownloadServer
 import io.github.kamakazedan.plexampweb.gui.GuiUpdateWorker
 import io.github.kamakazedan.plexampweb.gui.GuiUpdater
+import io.github.kamakazedan.plexampweb.gui.NewVersion
+import io.github.kamakazedan.plexampweb.media.MediaBridge
 import io.github.kamakazedan.plexampweb.net.Connectivity
 import io.github.kamakazedan.plexampweb.player.GuiServer
 import io.github.kamakazedan.plexampweb.player.Handoff
@@ -97,6 +101,9 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
     /** The player's Settings › Downloads is wanted (from the downloads' notification). */
     private var downloadsWanted = false
 
+    /** Something's been touched (or a key pressed) since the app was last opened. */
+    private var touched = false
+
     // (Downloads' progress shows in a notification: asked once, when the first starts.)
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
@@ -143,7 +150,7 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         }
         lifecycleScope.launch { app.resets.drop(1).collect { onPlayerForgotten() } }
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) { app.gui.updated.collect { offerReload() } }
+            repeatOnLifecycle(Lifecycle.State.STARTED) { app.gui.updated.collect { useNewVersion() } }
         }
         downloadsWanted = savedInstanceState == null && intent?.action == ACTION_SHOW_DOWNLOADS
         route()
@@ -158,7 +165,20 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
 
     override fun onStart() {
         super.onStart()
+        touched = false
         app.gui.checkSoon()
+        // (Saved while the app was out of sight, by the background check or Settings' button.)
+        useNewVersion()
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) touched = true
+        return super.dispatchTouchEvent(ev)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) touched = true
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onResume() {
@@ -590,9 +610,28 @@ class MainActivity : AppCompatActivity(), PlayerClient.Host, PlayerChrome.Host, 
         .setColorScheme(CustomTabsIntent.COLOR_SCHEME_DARK)
         .build()
 
-    private fun offerReload() {
+    /**
+     * A newer version of the player saved than the one on screen: reloaded onto it, or
+     * Reload offered, as NewVersion says. (As the app's opened, and as one's saved.)
+     */
+    private fun useNewVersion() {
         val view = webView ?: return
         if (screen != Screen.PLAYER) return
+        val step = NewVersion.step(
+            inUse = app.gui.inUse,
+            newest = app.gui.current()?.id,
+            opening = !touched,
+            playing = app.media.state == MediaBridge.State.PLAYING,
+            waiting = handoff != null || webSignIn || filesCallback != null || fileToSave != null,
+        )
+        when (step) {
+            NewVersion.Step.RELOAD -> view.reload()
+            NewVersion.Step.OFFER -> offerReload(view)
+            NewVersion.Step.NONE -> Unit
+        }
+    }
+
+    private fun offerReload(view: WebView) {
         Snackbar.make(ui.root, R.string.player_updated, Snackbar.LENGTH_LONG)
             .setAction(R.string.player_reload) { if (webView === view) view.reload() }
             .setDuration(UPDATE_NOTICE_MS)
