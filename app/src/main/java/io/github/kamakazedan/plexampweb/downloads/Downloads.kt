@@ -3,6 +3,7 @@ package io.github.kamakazedan.plexampweb.downloads
 import android.content.Context
 import io.github.kamakazedan.plexampweb.BuildConfig
 import io.github.kamakazedan.plexampweb.Prefs
+import io.github.kamakazedan.plexampweb.gui.GuiRefs
 import io.github.kamakazedan.plexampweb.net.Connectivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
@@ -16,6 +17,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import java.net.URI
+import java.net.URISyntaxException
+import java.net.URLDecoder
 
 /**
  * Playlists kept on the phone, to play without a connection or mobile data: what the
@@ -333,6 +337,43 @@ class Downloads(
      * one the player's on), or null where there are none.
      */
     fun storeFor(server: String?): DownloadStore? = shelves.storeIfAny(server ?: current)
+
+    /**
+     * Whether `url` is one of the addresses the page has downloads at (see DownloadServer),
+     * at the player's own address: they're on the phone, and never asked of the network.
+     */
+    fun isLocal(url: String): Boolean = localAt(url) != null
+
+    /**
+     * An album's cover on the phone, where `url` is the address the page has it at (for the
+     * lock screen, which shows the picture the page gives), or null where it isn't one.
+     */
+    fun coverAt(url: String): File? {
+        val (path, query) = localAt(url) ?: return null
+        if (path != "cover") return null
+        val store = storeFor(query["server"]) ?: return null
+        val name = query["path"]?.let { store.index().covers[it] } ?: return null
+        return store.coverFile(name).takeIf { it.isFile }
+    }
+
+    /** What follows downloads/ in `url`, and its query, where it's one of the downloads' addresses. */
+    private fun localAt(url: String): Pair<String, Map<String, String>>? {
+        val base = prefs.playerUrl ?: return null
+        return try {
+            val uri = URI(url)
+            val rel = GuiRefs.relative(URI(base), uri.scheme, uri.host, uri.port, uri.rawPath) ?: return null
+            if (!rel.startsWith(DownloadServer.PATH)) return null
+            val query = uri.rawQuery.orEmpty().split('&').mapNotNull { part ->
+                val at = part.indexOf('=')
+                if (at <= 0) null else URLDecoder.decode(part.substring(0, at), "UTF-8") to URLDecoder.decode(part.substring(at + 1), "UTF-8")
+            }
+            rel.removePrefix(DownloadServer.PATH) to query.toMap()
+        } catch (e: URISyntaxException) {
+            null
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
 
     /** The title of a playlist the sync's on (for its notification). */
     fun playlistTitle(id: String): String? = shelves.storeIfAny(running?.server ?: current)?.index()?.playlist(id)?.title

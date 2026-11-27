@@ -14,6 +14,9 @@ version you're running is in **Settings** (long-press the app's icon).
   again once you're back on that server. Downloads from before this version
   are kept as their server's. Signing out, switching user, or someone else
   signing in still removes them.
+- **The lock screen shows a download's cover from the phone** where the
+  player gives it from there (another server's downloads), rather than asking
+  the network for it.
 - **Downloads go gently while music plays**: at most a megabyte a second
   (faster than any music plays), so they don't crowd the phone's Wi-Fi, which
   Bluetooth shares on many phones, or its storage. Full speed otherwise.

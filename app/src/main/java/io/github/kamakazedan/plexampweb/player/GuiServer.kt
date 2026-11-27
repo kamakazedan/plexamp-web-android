@@ -91,7 +91,7 @@ class GuiServer(private val gui: GuiUpdates, base: String, private val downloads
         const val HANDOFF_PATH = "__plexamp-web-android/handoff"
 
         /** Never asked of the player itself either: downloads, answered here. */
-        const val DOWNLOADS_PATH = "__plexamp-web-android/downloads/"
+        const val DOWNLOADS_PATH = DownloadServer.PATH
 
         private const val HANDOFF_PAGE =
             "<!doctype html><meta charset=\"utf-8\"><meta name=\"color-scheme\" content=\"dark\">" +

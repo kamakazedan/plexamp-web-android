@@ -92,11 +92,14 @@ class DownloadServer(private val downloads: Downloads) {
 
     private fun notFound() = WebResourceResponse("text/plain", "utf-8", 404, "Not Found", NO_STORE, ByteArrayInputStream(ByteArray(0)))
 
-    private companion object {
-        val NO_STORE = mapOf("Cache-Control" to "no-store")
+    companion object {
+        /** Where downloads are, under the player's address: never asked of the player itself. */
+        const val PATH = "__plexamp-web-android/downloads/"
+
+        private val NO_STORE = mapOf("Cache-Control" to "no-store")
 
         // (What Plex sends as covers: its first bytes say.)
-        fun imageTypeOf(file: File): String {
+        private fun imageTypeOf(file: File): String {
             val head = ByteArray(12)
             val n = try {
                 FileInputStream(file).use { it.read(head) }
