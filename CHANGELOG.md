@@ -10,7 +10,7 @@ version you're running is in **Settings** (long-press the app's icon).
 - **Switching servers keeps your downloads**: each server's are kept apart,
   and switching to another server no longer deletes the ones you had. They
   stay on the phone, marked with the server they're from, and play from it
-  wherever you are (with plexamp-web 0.41.0 or later); they're kept up to date
+  wherever you are (with plexamp-web 0.41.1 or later); they're kept up to date
   again once you're back on that server. Downloads from before this version
   are kept as their server's. Signing out, switching user, or someone else
   signing in still removes them.
