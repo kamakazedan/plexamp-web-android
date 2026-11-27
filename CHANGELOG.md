@@ -3,6 +3,16 @@
 What changed in each version of plexamp-web for Android, newest first. The
 version you're running is in **Settings** (long-press the app's icon).
 
+## 0.3.1 - 2026-11-27
+
+### Fixed
+
+- **Bluetooth stutters away from Wi-Fi**: while music played, the app asked
+  Android to keep Wi-Fi awake even with no Wi-Fi around (in a car on mobile
+  data, say), which can keep it looking for the networks it knows. On many
+  phones Wi-Fi shares a radio with Bluetooth, whose audio can stutter while
+  it looks. Wi-Fi's kept awake now only while the phone's on Wi-Fi.
+
 ## 0.3.0 - 2026-11-27
 
 ### Changed

@@ -16,6 +16,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.content.ContextCompat
 import io.github.kamakazedan.plexampweb.PlexampWebApp
+import io.github.kamakazedan.plexampweb.net.Connectivity
 import io.github.kamakazedan.plexampweb.net.Http
 import io.github.kamakazedan.plexampweb.ui.MainActivity
 import kotlinx.coroutines.Dispatchers
@@ -30,8 +31,8 @@ import org.json.JSONObject
  * cars show it and control it. Their buttons go back to the page.
  *
  * While it plays: the playback service keeps the app running (PlaybackService), the
- * phone and its Wi-Fi stay awake enough to stream, and unplugging headphones (or a
- * Bluetooth headset or car going) pauses it, as music apps do.
+ * phone stays awake enough to stream (and its Wi-Fi, while it's on Wi-Fi), and unplugging
+ * headphones (or a Bluetooth headset or car going) pauses it, as music apps do.
  *
  * Main thread only.
  */
@@ -153,6 +154,11 @@ class MediaBridge(private val app: PlexampWebApp) {
         }
     }
 
+    /** The phone's connection changed (called from any thread): see keepWifi. */
+    fun networkChanged() {
+        app.scope.launch { keepWifi(state == State.PLAYING) }
+    }
+
     /** Paused a long while: no longer offered to the lock screen and headsets. */
     fun idle() {
         if (state != State.PLAYING) session.isActive = false
@@ -187,6 +193,7 @@ class MediaBridge(private val app: PlexampWebApp) {
         positionAt = SystemClock.elapsedRealtime()
         state = new
         keepAwake(new == State.PLAYING)
+        keepWifi(new == State.PLAYING)
         listenForNoisy(new == State.PLAYING)
         session.isActive = new != State.NONE
         publishState()
@@ -302,10 +309,21 @@ class MediaBridge(private val app: PlexampWebApp) {
     private fun keepAwake(on: Boolean) {
         if (on) {
             wakeLock.acquire(AWAKE_FOR_MS)
-            if (!wifiLock.isHeld) wifiLock.acquire()
-        } else {
-            if (wakeLock.isHeld) wakeLock.release()
-            if (wifiLock.isHeld) wifiLock.release()
+        } else if (wakeLock.isHeld) {
+            wakeLock.release()
+        }
+    }
+
+    // Wi-Fi kept up with the screen off, for music streamed over it: only while the phone's on
+    // Wi-Fi. Held anywhere else (in a car, on mobile data), the lock can keep Wi-Fi looking for the
+    // networks it knows, and many phones' Wi-Fi shares its radio with Bluetooth, whose audio
+    // can stutter while it looks.
+    private fun keepWifi(on: Boolean) {
+        val wanted = on && Connectivity.isWifi(app)
+        if (wanted && !wifiLock.isHeld) {
+            wifiLock.acquire()
+        } else if (!wanted && wifiLock.isHeld) {
+            wifiLock.release()
         }
     }
 
