@@ -315,7 +315,7 @@ class MediaBridge(private val app: PlexampWebApp) {
     }
 
     // Wi-Fi kept up with the screen off, for music streamed over it: only while the phone's on
-    // Wi-Fi. Held anywhere else (in a car, on mobile data), the lock keeps Wi-Fi looking for the
+    // Wi-Fi. Held anywhere else (in a car, on mobile data), the lock can keep Wi-Fi looking for the
     // networks it knows, and many phones' Wi-Fi shares its radio with Bluetooth, whose audio
     // can stutter while it looks.
     private fun keepWifi(on: Boolean) {
