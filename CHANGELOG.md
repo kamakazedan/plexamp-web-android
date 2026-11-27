@@ -3,12 +3,33 @@
 What changed in each version of plexamp-web for Android, newest first. The
 version you're running is in **Settings** (long-press the app's icon).
 
+## 0.3.0 - 2026-11-27
+
+### Changed
+
+- **Switching servers keeps your downloads**: each server's are kept apart,
+  and switching to another server no longer deletes the ones you had. They
+  stay on the phone, marked with the server they're from, and play from it
+  wherever you are (with plexamp-web 0.41.0 or later); they're kept up to date
+  again once you're back on that server. Downloads from before this version
+  are kept as their server's. Signing out, switching user, or someone else
+  signing in still removes them.
+- **Downloads go gently while music plays**: at most a megabyte a second
+  (faster than any music plays), so they don't crowd the phone's Wi-Fi, which
+  Bluetooth shares on many phones, or its storage. Full speed otherwise.
+
+### Fixed
+
+- **"Downloading…" on mobile data, with Wi-Fi only**: a download cut off by
+  leaving Wi-Fi now says it's waiting for Wi-Fi straight away, and stops
+  there, instead of saying it's still downloading.
+
 ## 0.2.4 - 2026-11-19
 
 ### Added
 
 - **Check for updates** in the player's Settings › About (with plexamp-web
-  0.40.3 or later), beside the app's version: it checks your player for a new
+  0.40.4 or later), beside the app's version: it checks your player for a new
   version and opens it straight away (or offers **Reload** while music's
   playing), and checks GitHub for a newer version of the app, to download from
   there. GitHub's asked only when you tap it.

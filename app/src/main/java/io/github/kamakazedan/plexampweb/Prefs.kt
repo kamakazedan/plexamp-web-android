@@ -87,7 +87,15 @@ class Prefs(context: Context) {
         get() = prefs.getString(DOWNLOAD_PREFER, null)
         set(value) = prefs.edit { putString(DOWNLOAD_PREFER, value) }
 
-    /** Whose downloads they are (a fingerprint: see DownloadAccount.ownerOf), while there are any. */
+    /** The server the player's on, as it last told downloads (its id): its downloads are the ones kept up to date. */
+    var downloadsServer: String?
+        get() = prefs.getString(DOWNLOADS_SERVER, null)
+        set(value) = prefs.edit { if (value == null) remove(DOWNLOADS_SERVER) else putString(DOWNLOADS_SERVER, value) }
+
+    /**
+     * Whose downloads from before 0.3.0 are (a fingerprint: see DownloadAccount.ownerOf),
+     * till they're moved to their server's place (see DownloadShelves.adoptOld).
+     */
     var downloadsOwner: String?
         get() = prefs.getString(DOWNLOADS_OWNER, null)
         set(value) = prefs.edit { if (value == null) remove(DOWNLOADS_OWNER) else putString(DOWNLOADS_OWNER, value) }
@@ -144,6 +152,7 @@ class Prefs(context: Context) {
         const val DOWNLOAD_QUALITY = "downloadQuality"
         const val DOWNLOAD_NETWORK = "downloadNetwork"
         const val DOWNLOAD_PREFER = "downloadPrefer"
+        const val DOWNLOADS_SERVER = "downloadsServer"
         const val DOWNLOADS_OWNER = "downloadsOwner"
         const val DOWNLOADS_TROUBLE = "downloadsTrouble"
         const val ASKED_NOTIFICATIONS = "askedNotifications"

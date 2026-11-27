@@ -6,7 +6,8 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 /**
- * Downloads on the phone, in the app's own storage:
+ * Downloads from a server on the phone, in the app's own storage (each server's apart:
+ * see DownloadShelves):
  *
  *     index.json             what's kept (DownloadIndex)
  *     playlists/<id>.json    each playlist and its tracks as the server last gave them, for the player offline
@@ -38,6 +39,17 @@ class DownloadStore(private val root: File, private val clock: () -> Long = Syst
         index = change(index)
         dirty = true
         index
+    }
+
+    /**
+     * Whose these are (`owner`: see DownloadAccount.ownerOf), and their server's name, as
+     * the player last gave it (null: as it was). Kept on disk at once.
+     */
+    fun claim(owner: String, name: String?) = synchronized(lock) {
+        val named = name?.takeIf { it.isNotBlank() } ?: index.name
+        if (index.owner == owner && index.name == named) return@synchronized
+        update { it.copy(owner = owner, name = named) }
+        flush()
     }
 
     /** The index, on disk. */
@@ -216,6 +228,9 @@ class DownloadStore(private val root: File, private val clock: () -> Long = Syst
     companion object {
         /** Playlists' and tracks' ids, as the server has them. */
         val ID = Regex("^\\d{1,12}$")
+
+        /** A server's id (its machineIdentifier). */
+        val SERVER = Regex("^[A-Za-z0-9_-]{1,100}$")
 
         private const val PART_KEPT_MS = 2 * 24 * 60 * 60 * 1000L
 

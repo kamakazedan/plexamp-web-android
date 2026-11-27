@@ -79,7 +79,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     private fun foregroundInfo(progress: DownloadSync.Progress?): ForegroundInfo {
         val context = applicationContext
         val counted = progress?.takeIf { it.total > 0 && !it.checking }
-        val title = progress?.playlist?.let { PlexampWebApp.from(context).downloads.store.index().playlist(it)?.title }
+        val title = progress?.playlist?.let { PlexampWebApp.from(context).downloads.playlistTitle(it) }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title ?: context.getString(R.string.downloads_notification_title))

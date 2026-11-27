@@ -38,6 +38,8 @@ import org.json.JSONObject
 class MediaBridge(private val app: PlexampWebApp) {
     enum class State { NONE, PAUSED, PLAYING }
 
+    /** (Read from any thread: downloads go gently while it's PLAYING.) */
+    @Volatile
     var state = State.NONE
         private set
     var title: String? = null

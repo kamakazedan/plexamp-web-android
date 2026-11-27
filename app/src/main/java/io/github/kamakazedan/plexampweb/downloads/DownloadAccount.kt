@@ -35,7 +35,6 @@ data class DownloadAccount(
     override fun toString() = "DownloadAccount(serverId=$serverId, uris=${uris.size})"
 
     companion object {
-        private val SERVER_ID = Regex("^[A-Za-z0-9_-]{1,100}$")
         private val TOKEN = Regex("^[A-Za-z0-9_.~-]{8,200}$")
         private const val MAX_URIS = 12
 
@@ -60,7 +59,7 @@ data class DownloadAccount(
          * the player's own (null: those kept already, checked when they were).
          */
         fun of(serverId: String, token: String, owner: String, uris: List<String>, device: String, playerOrigin: String?): DownloadAccount? {
-            if (!SERVER_ID.matches(serverId) || !TOKEN.matches(token) || owner.isEmpty() || owner.length > 100) return null
+            if (!DownloadStore.SERVER.matches(serverId) || !TOKEN.matches(token) || owner.isEmpty() || owner.length > 100) return null
             val kept = uris.asSequence()
                 .map { it.trim().trimEnd('/') }
                 .filter { playerOrigin == null || usable(it, playerOrigin) }

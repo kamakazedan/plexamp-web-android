@@ -31,6 +31,8 @@ class PlexClient(
     private val clientId: String,
     private val version: String,
     private val stopped: () -> Boolean = { false },
+    /** Keeps it gentle while music plays (null: full speed always). */
+    private val pacer: Pacer? = null,
 ) : PlexSource {
     /** The address that answered as the server, once one has. */
     @Volatile
@@ -282,7 +284,10 @@ class PlexClient(
             if (stopped()) throw PlexSource.Stopped()
             val n = body.read(buffer)
             if (n < 0) break
-            if (n > 0) write(buffer, n)
+            if (n > 0) {
+                write(buffer, n)
+                pacer?.took(n)
+            }
         }
     }
 
