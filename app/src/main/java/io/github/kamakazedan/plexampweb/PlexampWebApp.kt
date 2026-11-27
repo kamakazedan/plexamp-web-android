@@ -52,6 +52,7 @@ class PlexampWebApp : Application() {
         Connectivity.watch(this) { online, unmetered ->
             if (unmetered) scope.launch { gui.checkSoon() }
             downloads.networkChanged(online, unmetered)
+            media.networkChanged()
         }
         if (prefs.playerUrl != null) GuiUpdateWorker.schedule(this)
     }

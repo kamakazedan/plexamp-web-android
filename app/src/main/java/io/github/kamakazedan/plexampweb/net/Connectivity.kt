@@ -13,6 +13,13 @@ object Connectivity {
         return unmetered(caps)
     }
 
+    /** Whether the phone's connection is Wi-Fi (for keeping Wi-Fi up while music plays: see MediaBridge). */
+    fun isWifi(context: Context): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return false
+        val caps = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
     fun isOnline(context: Context): Boolean {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return false
         val caps = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false

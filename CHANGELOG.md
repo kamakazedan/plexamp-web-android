@@ -26,6 +26,11 @@ version you're running is in **Settings** (long-press the app's icon).
 - **"Downloading…" on mobile data, with Wi-Fi only**: a download cut off by
   leaving Wi-Fi now says it's waiting for Wi-Fi straight away, and stops
   there, instead of saying it's still downloading.
+- **Bluetooth stutters away from Wi-Fi**: while music played, the app asked
+  Android to keep Wi-Fi awake even with no Wi-Fi around (in a car on mobile
+  data, say), so it kept looking for the networks it knows. On many phones
+  Wi-Fi shares a radio with Bluetooth, whose audio can stutter while it
+  looks. Wi-Fi's kept awake now only while the phone's on Wi-Fi.
 
 ## 0.2.4 - 2026-11-19
 
