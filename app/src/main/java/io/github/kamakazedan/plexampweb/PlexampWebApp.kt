@@ -45,7 +45,7 @@ class PlexampWebApp : Application() {
         prefs = Prefs(this)
         gui = GuiUpdates(this)
         media = MediaBridge(this)
-        downloads = Downloads(this, prefs)
+        downloads = Downloads(this, prefs) { media.state == MediaBridge.State.PLAYING }
         updates = AppUpdates(prefs)
         PlaybackService.createChannel(this)
         DownloadWorker.createChannel(this)
@@ -64,7 +64,7 @@ class PlexampWebApp : Application() {
     fun forgetPlayer(notify: Boolean = true) {
         media.reset()
         gui.forget()
-        scope.launch(Dispatchers.IO) { downloads.forgetNow() }
+        scope.launch(Dispatchers.IO) { downloads.forget() }
         prefs.forgetPlayer()
         prefs.clearWebCache = true
         GuiUpdateWorker.cancel(this)

@@ -16,12 +16,13 @@ import java.io.InputStream
  *     __plexamp-web-android/downloads/playlist/<id>      a playlist and its tracks, as the server last gave them
  *     __plexamp-web-android/downloads/cover?path=<path>  an album's cover, by the server's name for it
  *
- * Called on WebView's own threads.
+ * each from the server `?server=<id>` says (`&server=` for a cover), or the one the player's
+ * on where it doesn't. Called on WebView's own threads.
  */
 class DownloadServer(private val downloads: Downloads) {
     /** `path`: what follows downloads/ in the address. */
     fun respond(request: WebResourceRequest, path: String): WebResourceResponse {
-        val store = downloads.store
+        val store = downloads.storeFor(request.url.getQueryParameter("server")) ?: return notFound()
         return when {
             path.startsWith("track/") -> {
                 val saved = store.index().tracks[path.removePrefix("track/")] ?: return notFound()
@@ -91,11 +92,14 @@ class DownloadServer(private val downloads: Downloads) {
 
     private fun notFound() = WebResourceResponse("text/plain", "utf-8", 404, "Not Found", NO_STORE, ByteArrayInputStream(ByteArray(0)))
 
-    private companion object {
-        val NO_STORE = mapOf("Cache-Control" to "no-store")
+    companion object {
+        /** Where downloads are, under the player's address: never asked of the player itself. */
+        const val PATH = "__plexamp-web-android/downloads/"
+
+        private val NO_STORE = mapOf("Cache-Control" to "no-store")
 
         // (What Plex sends as covers: its first bytes say.)
-        fun imageTypeOf(file: File): String {
+        private fun imageTypeOf(file: File): String {
             val head = ByteArray(12)
             val n = try {
                 FileInputStream(file).use { it.read(head) }

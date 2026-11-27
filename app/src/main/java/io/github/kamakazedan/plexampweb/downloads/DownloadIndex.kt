@@ -39,7 +39,7 @@ data class SavedPlaylist(
     }
 }
 
-/** What's downloaded: the playlists kept, the tracks they have, and their albums' covers. */
+/** What's downloaded from a server: the playlists kept, the tracks they have, and their albums' covers. */
 data class DownloadIndex(
     val playlists: List<SavedPlaylist> = emptyList(),
     val tracks: Map<String, SavedTrack> = emptyMap(),
@@ -47,6 +47,10 @@ data class DownloadIndex(
     val covers: Map<String, String> = emptyMap(),
     /** When everything was last brought up to date (0: not yet). */
     val syncedAt: Long = 0,
+    /** The server's name, as the player last gave it (null: not given yet), so the player can say where these are from. */
+    val name: String? = null,
+    /** Whose these are, as a fingerprint (see DownloadAccount.ownerOf): null for downloads from before 0.3.0, not yet claimed. */
+    val owner: String? = null,
 ) {
     /** Every track some playlist has. */
     fun wanted(): Set<String> = playlists.flatMapTo(HashSet()) { it.tracks }
@@ -90,6 +94,8 @@ data class DownloadIndex(
             .put("tracks", saved)
             .put("covers", JSONObject(covers))
             .put("syncedAt", syncedAt)
+            .putOpt("name", name)
+            .putOpt("owner", owner)
             .toString()
     }
 
@@ -118,7 +124,7 @@ data class DownloadIndex(
             }
             val covers = HashMap<String, String>()
             json.optJSONObject("covers")?.let { c -> for (path in c.keys()) covers[path] = c.getString(path) }
-            return DownloadIndex(playlists, tracks, covers, json.optLong("syncedAt"))
+            return DownloadIndex(playlists, tracks, covers, json.optLong("syncedAt"), json.stringOrNull("name"), json.stringOrNull("owner"))
         }
 
         private fun JSONObject.stringOrNull(name: String): String? = if (!has(name) || isNull(name)) null else getString(name)

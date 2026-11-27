@@ -64,6 +64,21 @@ class DownloadStoreTest {
     }
 
     @Test
+    fun claimedWithTheServersName() {
+        val store = store()
+        store.addPlaylist(playlist("10", "1"), "{}")
+        store.claim("owner-a", "Home")
+        assertEquals("owner-a", store().index().owner)
+        assertEquals("Home", store().index().name)
+        // (No name given, or a blank one: the one it had.)
+        store.claim("owner-a", null)
+        store.claim("owner-a", "  ")
+        assertEquals("Home", store().index().name)
+        store.claim("owner-a", "Home 2")
+        assertEquals("Home 2", store().index().name)
+    }
+
+    @Test
     fun askedAboutAgain() {
         val store = store()
         store.addPlaylist(playlist("10", "1").copy(checkedAt = now), "{}")

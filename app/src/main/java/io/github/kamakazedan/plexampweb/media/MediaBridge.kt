@@ -38,6 +38,8 @@ import org.json.JSONObject
 class MediaBridge(private val app: PlexampWebApp) {
     enum class State { NONE, PAUSED, PLAYING }
 
+    /** (Read from any thread: downloads go gently while it's PLAYING.) */
+    @Volatile
     var state = State.NONE
         private set
     var title: String? = null
@@ -261,7 +263,7 @@ class MediaBridge(private val app: PlexampWebApp) {
     }
 
     // The cover, for the lock screen: from where the page shows it (its address can carry the
-    // Plex token, so it goes nowhere else, and is never logged).
+    // Plex token, so it goes nowhere else, and is never logged), or a download's from the phone.
     private fun loadArt(url: String?) {
         artJob?.cancel()
         if (url == null) return
@@ -276,8 +278,13 @@ class MediaBridge(private val app: PlexampWebApp) {
     }
 
     private fun fetchBitmap(url: String): Bitmap? = try {
-        val res = Http.request(url, headers = mapOf("Accept" to "image/*"), maxBytes = 12 shl 20, readTimeoutMs = 20_000)
-        if (res.status == 200) decodeScaled(res.body, ART_SIZE) else null
+        if (app.downloads.isLocal(url)) {
+            // (Never the network's: the player hasn't got it.)
+            app.downloads.coverAt(url)?.takeIf { it.length() <= MAX_ART_BYTES }?.let { decodeScaled(it.readBytes(), ART_SIZE) }
+        } else {
+            val res = Http.request(url, headers = mapOf("Accept" to "image/*"), maxBytes = MAX_ART_BYTES, readTimeoutMs = 20_000)
+            if (res.status == 200) decodeScaled(res.body, ART_SIZE) else null
+        }
     } catch (e: Exception) {
         null
     }
@@ -327,6 +334,7 @@ class MediaBridge(private val app: PlexampWebApp) {
 
     private companion object {
         const val ART_SIZE = 512
+        const val MAX_ART_BYTES = 12 shl 20
         const val AWAKE_FOR_MS = 10 * 60 * 1000L
     }
 }

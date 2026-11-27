@@ -17,14 +17,16 @@ import org.json.JSONObject
  * answer to its question:
  *
  *     state                              everything Settings › Downloads shows (see Downloads.state)
- *     add { playlist }                   keep a playlist: refused with { code: "space", needed, free }, say
- *     remove { playlist }
+ *     add { playlist, server }           keep a playlist: refused with { code: "space", needed, free }, say
+ *     remove { playlist, server }
  *     set { quality, network, prefer }
- *     account { serverId, token, user, uris, device }   the player's sign-in to its server, each time it opens
+ *     account { serverId, serverName, token, user, uris, device }   the player's sign-in to its server, each time it opens
  *     forget                             signed out
  *     check                              brought up to date now ("Up to date", tapped)
- *     bad { track }                      a downloaded track that wouldn't play
+ *     bad { track, server }              a downloaded track that wouldn't play
  *
+ * `server` is the server a playlist or track is from (its id): where it's left out (a
+ * player from before 0.41.0), the one the player's on.
  * and is answered { type: "downloads", id, ok, state } or { …, ok: false, error: { code } }, the code
  * one of space, account (no sign-in given yet), signin, unreachable, server, missing,
  * empty, bad (a question that makes no sense), unknown (one there isn't) or failed.
@@ -50,15 +52,19 @@ class DownloadBridge(
                 when (msg.optString("op")) {
                     "state" -> Unit
                     "add" -> {
-                        downloads.add(msg.getString("playlist"))
+                        downloads.add(msg.getString("playlist"), msg.stringOrNull("server"))
                         onStarted()
                     }
-                    "remove" -> downloads.remove(msg.getString("playlist"))
+                    "remove" -> downloads.remove(msg.getString("playlist"), msg.stringOrNull("server"))
                     "set" -> downloads.set(msg.stringOrNull("quality"), msg.stringOrNull("network"), msg.stringOrNull("prefer"))
-                    "account" -> downloads.account(accountOf(msg) ?: throw Downloads.Refused("account"))
+                    "account" -> downloads.account(
+                        accountOf(msg) ?: throw Downloads.Refused("account"),
+                        msg.optString("user"),
+                        nameOf(msg.stringOrNull("serverName")),
+                    )
                     "forget" -> downloads.forget()
                     "check" -> downloads.check()
-                    "bad" -> downloads.dropTrack(msg.getString("track"))
+                    "bad" -> downloads.dropTrack(msg.getString("track"), msg.stringOrNull("server"))
                     else -> throw Downloads.Refused("unknown")
                 }
                 reply.put("ok", true).put("state", withContext(Dispatchers.IO) { downloads.state() })
@@ -109,9 +115,14 @@ class DownloadBridge(
         )
     }
 
+    // (A server's name, to show: one line, not too long.)
+    private fun nameOf(name: String?): String? =
+        name?.replace(Regex("[\\u0000-\\u001f\\u007f]"), " ")?.trim()?.take(MAX_NAME)?.ifEmpty { null }
+
     private fun JSONObject.stringOrNull(name: String): String? = if (has(name) && !isNull(name)) optString(name) else null
 
     private companion object {
         const val PUSH_MS = 1000L
+        const val MAX_NAME = 100
     }
 }

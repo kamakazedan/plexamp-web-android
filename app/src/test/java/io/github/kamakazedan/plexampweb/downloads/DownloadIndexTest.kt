@@ -16,12 +16,18 @@ class DownloadIndexTest {
         ),
         covers = mapOf("/library/metadata/1/thumb/2" to "abc"),
         syncedAt = 99,
+        name = "Home",
+        owner = "0123456789abcdef0123456789abcdef",
     )
 
     @Test
     fun keptAsJson() {
         assertEquals(index, DownloadIndex.fromJson(index.toJson()))
         assertEquals(DownloadIndex(), DownloadIndex.fromJson("{}"))
+        // (From before 0.3.0: no server's name, and no one's claimed them yet.)
+        val old = DownloadIndex.fromJson(index.copy(name = null, owner = null).toJson())
+        assertNull(old.name)
+        assertNull(old.owner)
     }
 
     @Test

@@ -254,17 +254,24 @@
   };
 
   // Where the app answers with what's downloaded: at the player's own address.
-  const local = (path) => new URL(`__plexamp-web-android/downloads/${path}`, document.baseURI).href;
+  // `server` (each server's are kept apart): the server it's from, or left out
+  // for the one the player's on.
+  const local = (path, server) => {
+    const u = new URL(`__plexamp-web-android/downloads/${path}`, document.baseURI);
+    if (server != null && server !== '') u.searchParams.set('server', String(server));
+    return u.href;
+  };
   const str = (v) => (v == null ? null : String(v));
 
   const downloads = Object.freeze({
     state: () => ask('downloads', 'state'),
-    add: (playlist) => ask('downloads', 'add', { playlist: String(playlist) }),
-    remove: (playlist) => ask('downloads', 'remove', { playlist: String(playlist) }),
+    add: (playlist, server) => ask('downloads', 'add', { playlist: String(playlist), server: str(server) }),
+    remove: (playlist, server) => ask('downloads', 'remove', { playlist: String(playlist), server: str(server) }),
     set: (s = {}) => ask('downloads', 'set', { quality: str(s.quality), network: str(s.network), prefer: str(s.prefer) }),
     account: (a = {}) =>
       ask('downloads', 'account', {
         serverId: text(a.serverId),
+        serverName: str(a.serverName),
         token: text(a.token),
         user: text(a.user),
         uris: Array.from(a.uris || []).map(String),
@@ -272,15 +279,19 @@
       }),
     forget: () => ask('downloads', 'forget'),
     check: () => ask('downloads', 'check'),
-    bad: (track) => ask('downloads', 'bad', { track: String(track) }),
+    bad: (track, server) => ask('downloads', 'bad', { track: String(track), server: str(server) }),
     // `fn(state)` each time downloads change: returns what stops it.
     watch: (fn) => {
       watchers.add(fn);
       return () => watchers.delete(fn);
     },
-    trackUrl: (id) => local(`track/${encodeURIComponent(id)}`),
-    playlistUrl: (id) => local(`playlist/${encodeURIComponent(id)}`),
-    coverUrl: (path) => local(`cover?path=${encodeURIComponent(path)}`),
+    trackUrl: (id, server) => local(`track/${encodeURIComponent(id)}`, server),
+    playlistUrl: (id, server) => local(`playlist/${encodeURIComponent(id)}`, server),
+    coverUrl: (path, server) => {
+      const u = new URL(local('cover', server));
+      u.searchParams.set('path', String(path));
+      return u.href;
+    },
   });
 
   // ---------- the app ----------
